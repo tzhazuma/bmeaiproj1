@@ -28,6 +28,29 @@ def autocast_context(device, use_amp):
     return torch.amp.autocast(device_type=device.type, enabled=use_amp)
 
 
+def create_dataloader(dataset, batch_size, shuffle, num_workers, pin_memory):
+    base_dataset = getattr(dataset, 'dataset', dataset)
+    if getattr(base_dataset, '_sample_cache', None) is not None:
+        num_workers = 0
+    loader_kwargs = {
+        'batch_size': batch_size,
+        'shuffle': shuffle,
+        'num_workers': num_workers,
+        'pin_memory': pin_memory,
+    }
+    if num_workers > 0:
+        loader_kwargs['persistent_workers'] = True
+        loader_kwargs['prefetch_factor'] = 4
+    return DataLoader(dataset, **loader_kwargs)
+
+
+def move_image_tensor(batch_tensor, device):
+    tensor = batch_tensor.to(device, non_blocking=True)
+    if device.type == 'cuda':
+        tensor = tensor.contiguous(memory_format=torch.channels_last)
+    return tensor
+
+
 def load_config(config_path=None):
     if config_path is None:
         config_path = os.environ.get('BMEAI_CONFIG')
@@ -46,8 +69,8 @@ def train_one_epoch(model, dataloader, optimizer, criterion, device, scaler=None
     running_loss = 0.0
 
     for batch in tqdm(dataloader, desc="Training", leave=False):
-        aliased = batch['aliased'].to(device)
-        gt = batch['gt'].to(device)
+        aliased = move_image_tensor(batch['aliased'], device)
+        gt = move_image_tensor(batch['gt'], device)
 
         optimizer.zero_grad(set_to_none=True)
         with autocast_context(device, use_amp):
@@ -73,8 +96,8 @@ def validate_one_epoch(model, dataloader, criterion, device, use_amp=False):
     running_loss = 0.0
 
     for batch in tqdm(dataloader, desc="Validating", leave=False):
-        aliased = batch['aliased'].to(device)
-        gt = batch['gt'].to(device)
+        aliased = move_image_tensor(batch['aliased'], device)
+        gt = move_image_tensor(batch['gt'], device)
 
         with autocast_context(device, use_amp):
             output = model(aliased)
@@ -94,21 +117,19 @@ def main():
     use_amp = config.get('runtime', {}).get('use_amp', device.type == 'cuda')
     num_workers = config['data'].get('num_workers', 0)
     pin_memory = device.type == 'cuda'
-    persistent_workers = num_workers > 0
     if device.type == 'cuda':
         torch.backends.cudnn.benchmark = True
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        torch.set_float32_matmul_precision('high')
     print(f"Using device: {device}")
     print(f"AMP enabled: {use_amp}")
 
     print("Loading dataset...")
     train_ds, val_ds, test_ds, mask = create_dataloaders(config)
 
-    train_loader = DataLoader(train_ds, batch_size=cfg['batch_size'],
-                              shuffle=True, num_workers=num_workers, pin_memory=pin_memory,
-                              persistent_workers=persistent_workers)
-    val_loader = DataLoader(val_ds, batch_size=cfg['batch_size'],
-                            shuffle=False, num_workers=num_workers, pin_memory=pin_memory,
-                            persistent_workers=persistent_workers)
+    train_loader = create_dataloader(train_ds, cfg['batch_size'], True, num_workers, pin_memory)
+    val_loader = create_dataloader(val_ds, cfg['batch_size'], False, num_workers, pin_memory)
 
     print(f"Train: {len(train_ds)} slices, Val: {len(val_ds)} slices, Test: {len(test_ds)} slices")
 
@@ -118,6 +139,8 @@ def main():
         base_channels=cfg['base_channels'],
         depth=cfg['depth']
     ).to(device)
+    if device.type == 'cuda':
+        model = model.to(memory_format=torch.channels_last)
 
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
 

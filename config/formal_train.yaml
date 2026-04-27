@@ -10,8 +10,9 @@ data:
   test_ratio: 0.15
   seed: 42
   num_workers: 4
+  preload_volumes: true
   max_patients: null
-  max_slices_per_patient: 8
+  max_slices_per_patient: 16
 
 task1:
   acceleration_factor: 5

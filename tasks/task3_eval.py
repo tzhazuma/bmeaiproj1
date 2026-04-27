@@ -57,6 +57,29 @@ def serialize_cases(cases):
     return serializable
 
 
+def create_dataloader(dataset, batch_size, shuffle, num_workers, pin_memory):
+    base_dataset = getattr(dataset, 'dataset', dataset)
+    if getattr(base_dataset, '_sample_cache', None) is not None:
+        num_workers = 0
+    loader_kwargs = {
+        'batch_size': batch_size,
+        'shuffle': shuffle,
+        'num_workers': num_workers,
+        'pin_memory': pin_memory,
+    }
+    if num_workers > 0:
+        loader_kwargs['persistent_workers'] = True
+        loader_kwargs['prefetch_factor'] = 4
+    return DataLoader(dataset, **loader_kwargs)
+
+
+def move_image_tensor(batch_tensor, device):
+    tensor = batch_tensor.to(device, non_blocking=True)
+    if device.type == 'cuda':
+        tensor = tensor.contiguous(memory_format=torch.channels_last)
+    return tensor
+
+
 def main():
     config = load_config()
     cfg = config['task3']
@@ -69,8 +92,7 @@ def main():
     print(f"Using device: {device}")
 
     _, _, test_ds, _ = create_dataloaders(config)
-    test_loader = DataLoader(test_ds, batch_size=cfg['batch_size'],
-                             shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
+    test_loader = create_dataloader(test_ds, cfg['batch_size'], False, num_workers, pin_memory)
 
     model = UnrolledReconNet(
         in_channels=cfg['in_channels'],
@@ -80,6 +102,8 @@ def main():
         num_cascades=cfg['num_cascades'],
         dc_weight=cfg['dc_weight'],
     ).to(device)
+    if device.type == 'cuda':
+        model = model.to(memory_format=torch.channels_last)
 
     # Load either checkpoint or final model
     model_path = os.path.join(output_dir, 'unrolled_net_final.pth')
@@ -109,11 +133,11 @@ def main():
 
     with torch.no_grad():
         for batch in tqdm(test_loader, desc="Evaluating"):
-            aliased = batch['aliased'].to(device)
-            gt = batch['gt'].to(device)
-            t1_full = batch['t1_full'].to(device)
-            kspace_us = batch['kspace_us'].to(device)
-            mask = batch['mask'].to(device)
+            aliased = move_image_tensor(batch['aliased'], device)
+            gt = move_image_tensor(batch['gt'], device)
+            t1_full = move_image_tensor(batch['t1_full'], device)
+            kspace_us = batch['kspace_us'].to(device, non_blocking=True)
+            mask = move_image_tensor(batch['mask'], device)
 
             output = model(aliased, t1_full, kspace_us, mask)
 

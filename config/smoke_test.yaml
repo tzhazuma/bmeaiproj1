@@ -10,6 +10,7 @@ data:
   test_ratio: 0.2
   seed: 42
   num_workers: 0
+  preload_volumes: false
   max_patients: 8
   max_slices_per_patient: 12
 

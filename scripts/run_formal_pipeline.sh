@@ -84,9 +84,14 @@ finalize() {
 
   BMEAI_CONFIG="$CONFIG_PATH" "$PYTHON_BIN" tasks/generate_report_assets.py || true
   BMEAI_CONFIG="$CONFIG_PATH" "$PYTHON_BIN" tasks/build_report.py || true
+  if [[ "$(basename "$CONFIG_PATH")" == "formal_train.yaml" ]]; then
+    "$PYTHON_BIN" tasks/export_report_pdf.py || true
+  fi
 }
 
 trap 'exit_code=$?; finalize "$exit_code"; exit "$exit_code"' EXIT
+
+write_metadata "running"
 
 run_stage() {
   local stage_name="$1"
@@ -94,6 +99,7 @@ run_stage() {
   local stage_start
   local stage_end
   CURRENT_STAGE="$stage_name"
+  write_metadata "running"
   echo "[$(date -Iseconds)] Starting $stage_name"
   stage_start="$(date +%s)"
   "$@"
@@ -110,6 +116,7 @@ run_stage() {
     assets) ASSETS_DURATION="$duration" ;;
   esac
   echo "[$(date -Iseconds)] Finished $stage_name in ${duration}s"
+  write_metadata "running"
 }
 
 if [[ "$RUN_TASK1" == "1" ]]; then

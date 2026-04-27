@@ -30,6 +30,13 @@ def load_json(path, default=None):
         return json.load(f)
 
 
+def load_text(path, default=None):
+    if not os.path.exists(path):
+        return default
+    with open(path, 'r') as f:
+        return f.read()
+
+
 def format_names(names):
     if not names:
         return '<fill Chinese names>'
@@ -66,6 +73,46 @@ def asset_status_line(root_dir, label, path):
     return f"- {label}: pending generation"
 
 
+def format_slice_selection(max_slices_per_patient):
+    if max_slices_per_patient is None:
+        return 'all available slices per patient'
+    return f'{max_slices_per_patient} central slices per patient'
+
+
+def relative_asset_path(root_dir, path):
+    if not os.path.exists(path):
+        return None
+    return os.path.relpath(path, root_dir).replace(os.sep, '/')
+
+
+def append_image_block(lines, title, rel_path):
+    lines.append(f'### {title}')
+    lines.append('')
+    if rel_path is None:
+        lines.append('Pending generation.')
+    else:
+        lines.append(f'![{title}]({rel_path})')
+    lines.append('')
+
+
+def append_markdown_file(lines, title, path, fallback_text):
+    lines.append(f'### {title}')
+    lines.append('')
+    content = load_text(path)
+    if content is None:
+        lines.append(fallback_text)
+        lines.append('')
+        return
+
+    content_lines = content.strip().splitlines()
+    if content_lines and content_lines[0].startswith('# '):
+        content_lines = content_lines[1:]
+        while content_lines and not content_lines[0].strip():
+            content_lines = content_lines[1:]
+    lines.extend(content_lines)
+    lines.append('')
+
+
 def build_results_lines(task2_summary, task3_summary):
     lines = []
     if task2_summary is None:
@@ -100,11 +147,21 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
     root_dir = os.path.dirname(output_dir)
     report_assets_dir = os.path.join(output_dir, 'report_assets')
     generated_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    max_slices_per_patient = config['data'].get('max_slices_per_patient')
 
     division_of_labor = format_list(metadata.get('division_of_labor'), '<fill division of labor>')
     chinese_names = metadata.get('chinese_names', [])
     run_status = summarize_run_status(run_metadata)
     total_runtime = summarize_duration(run_metadata.get('total_duration_seconds') if run_metadata else None)
+
+    dataset_split_chart = relative_asset_path(root_dir, os.path.join(report_assets_dir, 'dataset_split.png'))
+    metric_comparison_chart = relative_asset_path(root_dir, os.path.join(report_assets_dir, 'metric_comparison.png'))
+    task1_visualization = relative_asset_path(root_dir, os.path.join(output_dir, 'task1', 'undersampling_visualization.png'))
+    task2_loss_curve = relative_asset_path(root_dir, os.path.join(output_dir, 'task2', 'loss_curves.png'))
+    task2_recons = relative_asset_path(root_dir, os.path.join(output_dir, 'task2', 'reconstruction_results.png'))
+    task3_loss_curve = relative_asset_path(root_dir, os.path.join(output_dir, 'task3', 'loss_curves.png'))
+    task3_best_recons = relative_asset_path(root_dir, os.path.join(output_dir, 'task3', 'best_reconstructions.png'))
+    task3_error_analysis = relative_asset_path(root_dir, os.path.join(output_dir, 'task3', 'error_analysis.png'))
 
     lines = []
     lines.append(f"# {metadata.get('project_title', 'BraTS MRI Reconstruction Project')}")
@@ -135,6 +192,8 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
     lines.append(f"- Slice axis: {config['data']['slice_axis']}")
     lines.append(f"- Intensity normalization: z-score on non-zero voxels")
     lines.append(f"- Split strategy: patient-level train/validation/test")
+    lines.append(f"- Slice selection for this run: {format_slice_selection(max_slices_per_patient)}")
+    lines.append(f"- Volume loading mode: {'preloaded in RAM to reduce I/O stalls' if config['data'].get('preload_volumes', False) else 'on-demand loading'}")
     lines.append(f"- Split counts: train={split_counts['Train']}, validation={split_counts['Validation']}, test={split_counts['Test']}")
     lines.append('')
     lines.append('## Methods')
@@ -146,6 +205,7 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
     lines.append('### Task 2')
     lines.append('')
     lines.append(f"Task 2 uses a U-Net baseline with base channels {config['task2']['base_channels']}, depth {config['task2']['depth']}, batch size {config['task2']['batch_size']}, MSE loss, and learning rate {config['task2']['learning_rate']}. `ReduceLROnPlateau` is used for learning rate decay.")
+    lines.append('During training, `channels_last`, pinned memory, non-blocking GPU transfers, TF32, and multi-worker prefetching are enabled to reduce GPU idle time.')
     lines.append('')
     lines.append('### Task 3')
     lines.append('')
@@ -163,17 +223,26 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
     lines.append('')
     lines.append('## Figures and Tables')
     lines.append('')
-    lines.append(asset_status_line(root_dir, 'Dataset split chart', os.path.join(report_assets_dir, 'dataset_split.png')))
-    lines.append(asset_status_line(root_dir, 'Metric comparison chart', os.path.join(report_assets_dir, 'metric_comparison.png')))
-    lines.append(asset_status_line(root_dir, 'Summary tables', os.path.join(report_assets_dir, 'summary_tables.md')))
-    lines.append(asset_status_line(root_dir, 'Worst-case table', os.path.join(report_assets_dir, 'worst_cases_table.md')))
-    lines.append(asset_status_line(root_dir, 'Task 1 visualization', os.path.join(output_dir, 'task1', 'undersampling_visualization.png')))
-    lines.append(asset_status_line(root_dir, 'Task 2 loss curve', os.path.join(output_dir, 'task2', 'loss_curves.png')))
-    lines.append(asset_status_line(root_dir, 'Task 2 reconstructions', os.path.join(output_dir, 'task2', 'reconstruction_results.png')))
-    lines.append(asset_status_line(root_dir, 'Task 3 loss curve', os.path.join(output_dir, 'task3', 'loss_curves.png')))
-    lines.append(asset_status_line(root_dir, 'Task 3 best reconstructions', os.path.join(output_dir, 'task3', 'best_reconstructions.png')))
-    lines.append(asset_status_line(root_dir, 'Task 3 error analysis', os.path.join(output_dir, 'task3', 'error_analysis.png')))
-    lines.append('')
+    append_image_block(lines, 'Dataset Split Chart', dataset_split_chart)
+    append_image_block(lines, 'Metric Comparison Chart', metric_comparison_chart)
+    append_markdown_file(
+        lines,
+        'Summary Tables',
+        os.path.join(report_assets_dir, 'summary_tables.md'),
+        'Pending generation.',
+    )
+    append_markdown_file(
+        lines,
+        'Worst-case Table',
+        os.path.join(report_assets_dir, 'worst_cases_table.md'),
+        'Pending generation.',
+    )
+    append_image_block(lines, 'Task 1 Visualization', task1_visualization)
+    append_image_block(lines, 'Task 2 Loss Curve', task2_loss_curve)
+    append_image_block(lines, 'Task 2 Reconstructions', task2_recons)
+    append_image_block(lines, 'Task 3 Loss Curve', task3_loss_curve)
+    append_image_block(lines, 'Task 3 Best Reconstructions', task3_best_recons)
+    append_image_block(lines, 'Task 3 Error Analysis', task3_error_analysis)
     lines.append('## Error Analysis')
     lines.append('')
     if not worst_cases:
@@ -203,7 +272,9 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
     lines.append('## Discussion')
     lines.append('')
     if task2_summary is not None and task3_summary is not None:
-        lines.append('The current results support the expected conclusion of the project: the baseline network substantially reduces aliasing artifacts, and the multi-modal unrolled model provides additional measurable improvement.')
+        lines.append(
+            f"The current results support the expected conclusion of the project: the baseline network substantially reduces aliasing artifacts, and the multi-modal unrolled model provides additional measurable improvement while using {format_slice_selection(max_slices_per_patient)} across all available patients."
+        )
     else:
         lines.append('Formal quantitative conclusions are pending because the final training run has not completed yet. The automation scripts are prepared so this report will be refreshed automatically after the formal run finishes.')
     lines.append('')
@@ -211,8 +282,9 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
     lines.append('')
     lines.append('- Code: prepared')
     lines.append(f"- Report draft: `{os.path.basename(os.path.join(root_dir, 'REPORT.md'))}`")
+    lines.append(f"- LaTeX report: `{os.path.basename(os.path.join(root_dir, 'REPORT.tex'))}`")
+    lines.append(f"- PDF report: `{os.path.basename(os.path.join(root_dir, 'REPORT.pdf'))}`")
     lines.append('- Presentation slides: still need to be prepared manually')
-    lines.append('- Final PDF export: still needs manual export after placeholders are reviewed')
 
     return '\n'.join(lines) + '\n'
 

@@ -1,0 +1,320 @@
+\documentclass[11pt]{article}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usepackage{float}
+\setmainfont{Noto Serif CJK SC}
+\setsansfont{Noto Sans CJK SC}
+\setmonofont{Noto Sans Mono CJK SC}
+\setCJKmainfont{Noto Serif CJK SC}
+\hypersetup{colorlinks=true, linkcolor=black, urlcolor=blue}
+\title{BraTS MRI Reconstruction Project}
+\date{}
+\begin{document}
+\maketitle
+
+Generated from config \texttt{config/formal\_train.yaml} on 2026-04-28 04:50:12.\\
+
+\section*{Group Information}
+
+\begin{itemize}
+\item Course: BME AI Project 1
+\item Group: 第4组
+\item Chinese names: 唐志昊 2022533131
+\item Note: Metadata has been filled automatically. Review the final report before submission.
+\end{itemize}
+
+\section*{AI Usage Declaration}
+
+This project used AI tools for code debugging, experiment automation, and report drafting. Manual review and result verification were performed before submission.\\
+
+Presentation reminder: Remember to claim AI usage in the presentation slides as required by the assignment.\\
+
+\section*{Project Objective}
+
+This project reconstructs fully sampled T2 brain MRI slices from AF=5 undersampled k-space using the BraTS dataset. The assignment requires three tasks: undersampling simulation, a baseline reconstruction model, and a multi-modal unrolled model with data consistency.\\
+
+\section*{Dataset and Preprocessing}
+
+\begin{itemize}
+\item Dataset path: \texttt{../bmeaidataset}
+\item Modalities used: T1, T2
+\item Slice axis: 2
+\item Intensity normalization: z-score on non-zero voxels
+\item Split strategy: patient-level train/validation/test
+\item Slice selection for this run: 16 central slices per patient
+\item Volume loading mode: preloaded in RAM to reduce I/O stalls
+\item Split counts: train=6992, validation=1504, test=1504
+\end{itemize}
+
+\section*{Methods}
+
+\subsection*{Task 1}
+
+A 2D random variable-density sampling mask with acceleration factor 5 is generated in k-space. Fully sampled T2 slices are transformed with FFT, masked, and reconstructed with inverse FFT to obtain aliased images.\\
+
+\subsection*{Task 2}
+
+Task 2 uses a U-Net baseline with base channels 24, depth 4, batch size 8, MSE loss, and learning rate 0.0005. \texttt{ReduceLROnPlateau} is used for learning rate decay.\\
+During training, \texttt{channels\_last}, pinned memory, non-blocking GPU transfers, TF32, and multi-worker prefetching are enabled to reduce GPU idle time.\\
+
+\subsection*{Task 3}
+
+Task 3 uses an unrolled U-Net with 2 cascades, data consistency layers, and multi-modal input consisting of aliased T2 plus fully sampled T1. The loss is \texttt{hybrid} with L1 weight 0.7.\\
+
+\section*{Division of Labor}
+
+\begin{itemize}
+\item 唐志昊：完成项目整合、训练实验执行、结果核查、报告整理与提交。
+\end{itemize}
+
+\section*{Quantitative Results}
+
+\begin{itemize}
+\item Task 2 improved PSNR from 25.76 dB to 35.18 dB and SSIM from 0.3628 to 0.9271.
+\item Task 3 improved PSNR from 25.76 dB to 38.12 dB and SSIM from 0.3628 to 0.9660.
+\item Compared with Task 2, Task 3 changed PSNR by 2.93 dB and SSIM by 0.0389.
+\end{itemize}
+
+\section*{Figures and Tables}
+
+\subsection*{Dataset Split Chart}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{outputs\_formal/report\_assets/dataset\_split.png}
+\caption{Dataset Split Chart}
+\end{figure}
+
+
+\subsection*{Metric Comparison Chart}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{outputs\_formal/report\_assets/metric\_comparison.png}
+\caption{Metric Comparison Chart}
+\end{figure}
+
+
+\subsection*{Summary Tables}
+
+\section*{Dataset Split}
+
+\begin{longtable}{lr}
+\toprule
+Split & Slice Count \\
+\midrule
+\endfirsthead
+\toprule
+Split & Slice Count \\
+\midrule
+\endhead
+Train & 6992 \\
+Validation & 1504 \\
+Test & 1504 \\
+\bottomrule
+\end{longtable}
+
+
+\section*{Hyperparameters}
+
+\begin{longtable}{lll}
+\toprule
+Setting & Task 2 & Task 3 \\
+\midrule
+\endfirsthead
+\toprule
+Setting & Task 2 & Task 3 \\
+\midrule
+\endhead
+Input & Aliased T2 & Aliased T2 + full T1 \\
+Backbone & U-Net & Unrolled U-Net + DC \\
+Base channels & 24 & 16 \\
+Depth & 4 & 3 \\
+Batch size & 8 & 4 \\
+Epochs & 10 & 8 \\
+Learning rate & 0.0005 & 0.0001 \\
+Loss & MSE & hybrid \\
+\bottomrule
+\end{longtable}
+
+
+\section*{Quantitative Results}
+
+\begin{longtable}{lrr}
+\toprule
+Method & PSNR (dB) & SSIM \\
+\midrule
+\endfirsthead
+\toprule
+Method & PSNR (dB) & SSIM \\
+\midrule
+\endhead
+Aliased input & 25.76 & 0.3628 \\
+Task 2 baseline & 35.18 & 0.9271 \\
+Task 3 multi-modal & 38.12 & 0.9660 \\
+\bottomrule
+\end{longtable}
+
+
+\section*{Improvements Over Aliased Input}
+
+\begin{longtable}{lrr}
+\toprule
+Method & PSNR Gain (dB) & SSIM Gain \\
+\midrule
+\endfirsthead
+\toprule
+Method & PSNR Gain (dB) & SSIM Gain \\
+\midrule
+\endhead
+Task 2 baseline & 9.43 & 0.5643 \\
+Task 3 multi-modal & 12.36 & 0.6032 \\
+\bottomrule
+\end{longtable}
+
+
+\section*{Task 3 Over Task 2}
+
+\begin{longtable}{lr}
+\toprule
+Comparison & Value \\
+\midrule
+\endfirsthead
+\toprule
+Comparison & Value \\
+\midrule
+\endhead
+PSNR gain & 2.93 dB \\
+SSIM gain & 0.0389 \\
+\bottomrule
+\end{longtable}
+
+
+\subsection*{Worst-case Table}
+
+\begin{longtable}{llrrrrr}
+\toprule
+Rank & Patient & Slice & PSNR Before & PSNR After & SSIM Before & SSIM After \\
+\midrule
+\endfirsthead
+\toprule
+Rank & Patient & Slice & PSNR Before & PSNR After & SSIM Before & SSIM After \\
+\midrule
+\endhead
+1 & BraTS-GLI-00077-000 & 76 & 23.26 & 34.69 & 0.2865 & 0.9443 \\
+2 & BraTS-GLI-00077-000 & 82 & 23.14 & 34.74 & 0.2875 & 0.9502 \\
+3 & BraTS-GLI-00088-001 & 82 & 24.33 & 34.82 & 0.3160 & 0.9439 \\
+4 & BraTS-GLI-00077-000 & 78 & 23.23 & 34.82 & 0.2942 & 0.9481 \\
+5 & BraTS-GLI-00077-000 & 79 & 23.22 & 34.84 & 0.2921 & 0.9484 \\
+\bottomrule
+\end{longtable}
+
+
+\subsection*{Task 1 Visualization}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{outputs\_formal/task1/undersampling\_visualization.png}
+\caption{Task 1 Visualization}
+\end{figure}
+
+
+\subsection*{Task 2 Loss Curve}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{outputs\_formal/task2/loss\_curves.png}
+\caption{Task 2 Loss Curve}
+\end{figure}
+
+
+\subsection*{Task 2 Reconstructions}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{outputs\_formal/task2/reconstruction\_results.png}
+\caption{Task 2 Reconstructions}
+\end{figure}
+
+
+\subsection*{Task 3 Loss Curve}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{outputs\_formal/task3/loss\_curves.png}
+\caption{Task 3 Loss Curve}
+\end{figure}
+
+
+\subsection*{Task 3 Best Reconstructions}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{outputs\_formal/task3/best\_reconstructions.png}
+\caption{Task 3 Best Reconstructions}
+\end{figure}
+
+
+\subsection*{Task 3 Error Analysis}
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.95\linewidth]{outputs\_formal/task3/error\_analysis.png}
+\caption{Task 3 Error Analysis}
+\end{figure}
+
+
+\section*{Error Analysis}
+
+The 5 worst-performing Task 3 cases are summarized below.\\
+
+\begin{longtable}{llrrr}
+\toprule
+Rank & Patient & Slice & PSNR After & SSIM After \\
+\midrule
+\endfirsthead
+\toprule
+Rank & Patient & Slice & PSNR After & SSIM After \\
+\midrule
+\endhead
+1 & BraTS-GLI-00077-000 & 76 & 34.69 & 0.9443 \\
+2 & BraTS-GLI-00077-000 & 82 & 34.74 & 0.9502 \\
+3 & BraTS-GLI-00088-001 & 82 & 34.82 & 0.9439 \\
+4 & BraTS-GLI-00077-000 & 78 & 34.82 & 0.9481 \\
+5 & BraTS-GLI-00077-000 & 79 & 34.84 & 0.9484 \\
+\bottomrule
+\end{longtable}
+
+
+Potential improvements for these cases include stronger edge-preserving loss terms, more cascades if runtime allows, and targeted inspection of slices with complex tumor boundaries.\\
+
+\section*{Execution Status}
+
+\begin{itemize}
+\item Current run status: Success
+\item Output directory: \texttt{outputs\_formal}
+\item Total runtime: 24m 42s
+\item Last completed stage: assets
+\item Log file: \texttt{outputs\_formal/logs/formal\_pipeline.log}
+\end{itemize}
+
+\section*{Discussion}
+
+The current results support the expected conclusion of the project: the baseline network substantially reduces aliasing artifacts, and the multi-modal unrolled model provides additional measurable improvement while using 16 central slices per patient across all available patients.\\
+
+\section*{Submission Checklist}
+
+\begin{itemize}
+\item Code: prepared
+\item Report draft: \texttt{REPORT.md}
+\item LaTeX report: \texttt{REPORT.tex}
+\item PDF report: \texttt{REPORT.pdf}
+\item Presentation slides: still need to be prepared manually
+\end{itemize}
+\end{document}

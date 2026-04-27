@@ -16,3 +16,6 @@ venv/
 *.pdf
 *.log
 *.npy
+*.aux
+*.out
+!REPORT.pdf

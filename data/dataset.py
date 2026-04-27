@@ -1,5 +1,6 @@
 import os
 import random
+from functools import lru_cache
 
 import nibabel as nib
 import numpy as np
@@ -67,10 +68,22 @@ def find_modality_path(patient_dir, modality):
     return None
 
 
+@lru_cache(maxsize=128)
+def load_nifti_image(path):
+    return nib.load(path)
+
+
+def load_slice_from_image(image, slice_axis, slice_idx):
+    slicer = [slice(None)] * len(image.shape)
+    slicer[slice_axis] = slice_idx
+    return np.asarray(image.dataobj[tuple(slicer)], dtype=np.float32).copy()
+
+
 class BraTSDataset(Dataset):
     def __init__(self, root_dir, modalities=('T1', 'T2'), slice_axis=2,
                  undersample_mask=None, acceleration_factor=5, sigma=0.3,
-                 max_patients=None, max_slices_per_patient=None):
+                 max_patients=None, max_slices_per_patient=None,
+                 preload_volumes=False):
         self.root_dir = resolve_dataset_path(root_dir)
         self.modalities = list(modalities)
         self.slice_axis = slice_axis
@@ -78,7 +91,11 @@ class BraTSDataset(Dataset):
         self.acceleration_factor = acceleration_factor
         self.sigma = sigma
         self.max_slices_per_patient = max_slices_per_patient
+        self.preload_volumes = preload_volumes
         self.image_shape = None
+        self.patient_records = {}
+        self._mask_tensor = None
+        self._sample_cache = None
 
         self.patient_dirs = sorted([
             d for d in os.listdir(self.root_dir)
@@ -104,36 +121,128 @@ class BraTSDataset(Dataset):
         indices = []
         for pid, pdir in enumerate(self.patient_dirs):
             full_path = os.path.join(self.root_dir, pdir)
-            t2_path = self._find_nifti(full_path, 't2')
-            if t2_path is None:
+            modality_paths = {}
+            missing_modalities = False
+            for modality in self.modalities:
+                modality_path = self._find_nifti(full_path, modality)
+                if modality_path is None:
+                    missing_modalities = True
+                    break
+                modality_paths[modality.lower()] = modality_path
+
+            if missing_modalities or 't2' not in modality_paths:
                 continue
-            vol = nib.load(t2_path).get_fdata()
+
+            t2_image = load_nifti_image(modality_paths['t2'])
+            volume_shape = t2_image.shape
+            n_slices = volume_shape[self.slice_axis]
             if self.image_shape is None:
-                self.image_shape = np.take(vol, 0, axis=self.slice_axis).shape
-            n_slices = vol.shape[self.slice_axis]
-            for s in self._select_slice_indices(n_slices):
+                self.image_shape = tuple(
+                    dim for axis, dim in enumerate(volume_shape) if axis != self.slice_axis
+                )
+
+            self.patient_records[pdir] = {
+                'paths': modality_paths,
+                'shape': volume_shape,
+            }
+
+            selected_indices = list(self._select_slice_indices(n_slices))
+
+            if self.preload_volumes:
+                slice_cache = {}
+                for modality_name, modality_path in modality_paths.items():
+                    image = load_nifti_image(modality_path)
+                    modality_cache = {}
+                    for slice_idx in selected_indices:
+                        slc = load_slice_from_image(image, self.slice_axis, slice_idx)
+                        m = slc > 0
+                        if m.sum() > 0:
+                            slc[m] = (slc[m] - slc[m].mean()) / (slc[m].std() + 1e-8)
+                        modality_cache[slice_idx] = slc
+                    slice_cache[modality_name] = modality_cache
+                self.patient_records[pdir]['slice_cache'] = slice_cache
+
+            for s in selected_indices:
                 indices.append((pid, pdir, s))
         return indices
+
+    def set_undersample_mask(self, mask):
+        self.undersample_mask = mask
+        self._mask_tensor = torch.from_numpy(mask.astype(np.float32)).unsqueeze(0)
+        if self.preload_volumes:
+            self._build_sample_cache()
+
+    def _build_sample_cache(self):
+        self._sample_cache = []
+        if self._mask_tensor is None:
+            return
+
+        for _, pdir, slice_idx in self.slices:
+            patient_record = self.patient_records[pdir]
+            volumes = {
+                mod.lower(): patient_record['slice_cache'][mod.lower()][slice_idx]
+                for mod in self.modalities
+            }
+            self._sample_cache.append(
+                self._build_sample_result(pdir, slice_idx, volumes, self.undersample_mask)
+            )
+
+    def _build_sample_result(self, pdir, slice_idx, volumes, mask):
+        t2 = volumes['t2']
+        t2_tensor = torch.from_numpy(t2).unsqueeze(0)
+
+        t1 = None
+        for mod in self.modalities:
+            if mod.lower() == 't1':
+                t1 = volumes['t1']
+                t1_tensor = torch.from_numpy(t1).unsqueeze(0)
+                break
+
+        kspace = np.fft.fftshift(np.fft.fft2(t2))
+        kspace_us = kspace * mask
+        t2_us = np.fft.ifft2(np.fft.ifftshift(kspace_us)).real
+        t2_us_tensor = torch.from_numpy(t2_us.astype(np.float32)).unsqueeze(0)
+
+        result = {
+            'aliased': t2_us_tensor,
+            'gt': t2_tensor,
+            'mask': self._mask_tensor,
+            'kspace_us': torch.from_numpy(
+                np.stack([kspace_us.real, kspace_us.imag], axis=0)
+            ).float(),
+            'slice_idx': slice_idx,
+            'patient': pdir,
+        }
+
+        if t1 is not None:
+            result['t1_full'] = t1_tensor
+
+        return result
 
     def __len__(self):
         return len(self.slices)
 
     def __getitem__(self, idx):
+        if self._sample_cache is not None:
+            return self._sample_cache[idx]
+
         pid, pdir, slice_idx = self.slices[idx]
-        full_path = os.path.join(self.root_dir, pdir)
+        patient_record = self.patient_records[pdir]
 
         volumes = {}
         for mod in self.modalities:
-            nii_path = self._find_nifti(full_path, mod)
+            nii_path = patient_record['paths'].get(mod.lower())
             if nii_path is None:
                 raise FileNotFoundError(f"Missing {mod} for {pdir}")
-            vol = nib.load(nii_path).get_fdata()
-            slc = np.take(vol, slice_idx, axis=self.slice_axis)
-            slc = slc.astype(np.float32)
+            if self.preload_volumes:
+                slc = patient_record['slice_cache'][mod.lower()][slice_idx]
+            else:
+                image = load_nifti_image(nii_path)
+                slc = load_slice_from_image(image, self.slice_axis, slice_idx)
 
-            m = slc > 0
-            if m.sum() > 0:
-                slc[m] = (slc[m] - slc[m].mean()) / (slc[m].std() + 1e-8)
+                m = slc > 0
+                if m.sum() > 0:
+                    slc[m] = (slc[m] - slc[m].mean()) / (slc[m].std() + 1e-8)
             volumes[mod.lower()] = slc
 
         t2 = volumes['t2']
@@ -150,29 +259,13 @@ class BraTSDataset(Dataset):
             mask = generate_undersampling_mask_cpu(
                 t2.shape, self.acceleration_factor, self.sigma
             )
+            self._mask_tensor = None
         else:
             mask = self.undersample_mask
 
-        kspace = np.fft.fftshift(np.fft.fft2(t2))
-        kspace_us = kspace * mask
-        t2_us = np.fft.ifft2(np.fft.ifftshift(kspace_us)).real
-        t2_us_tensor = torch.from_numpy(t2_us.astype(np.float32)).unsqueeze(0)
-
-        result = {
-            'aliased': t2_us_tensor,
-            'gt': t2_tensor,
-            'mask': torch.from_numpy(mask.astype(np.float32)).unsqueeze(0),
-            'kspace_us': torch.from_numpy(
-                np.stack([kspace_us.real, kspace_us.imag], axis=0)
-            ).float(),
-            'slice_idx': slice_idx,
-            'patient': pdir,
-        }
-
-        if t1 is not None:
-            result['t1_full'] = t1_tensor
-
-        return result
+        if self._mask_tensor is None or self._mask_tensor.shape[-2:] != mask.shape:
+            self._mask_tensor = torch.from_numpy(mask.astype(np.float32)).unsqueeze(0)
+        return self._build_sample_result(pdir, slice_idx, volumes, mask)
 
 
 def generate_undersampling_mask_cpu(shape, acceleration_factor=5, sigma=0.3):
@@ -207,6 +300,7 @@ def create_dataloaders(config):
         slice_axis=slice_axis,
         max_patients=data_cfg.get('max_patients'),
         max_slices_per_patient=data_cfg.get('max_slices_per_patient'),
+        preload_volumes=data_cfg.get('preload_volumes', False),
     )
 
     if len(full_dataset) == 0 or full_dataset.image_shape is None:
@@ -217,7 +311,7 @@ def create_dataloaders(config):
         config['task1']['acceleration_factor'],
         config['task1']['sigma']
     )
-    full_dataset.undersample_mask = mask
+    full_dataset.set_undersample_mask(mask)
 
     val_ratio = config['data']['val_ratio']
     test_ratio = config['data']['test_ratio']

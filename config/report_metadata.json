@@ -1,13 +1,13 @@
 {
   "project_title": "BraTS MRI Reconstruction Project",
   "course": "BME AI Project 1",
-  "group_name": "<fill group name>",
+  "group_name": "第4组",
   "chinese_names": [
-    "<fill Chinese names>"
+    "唐志昊 2022533131"
   ],
-  "report_author_note": "Replace placeholders before final PDF export.",
+  "report_author_note": "Metadata has been filled automatically. Review the final report before submission.",
   "division_of_labor": [
-    "<fill division of labor>"
+    "唐志昊：完成项目整合、训练实验执行、结果核查、报告整理与提交。"
   ],
   "ai_usage_statement": "This project used AI tools for code debugging, experiment automation, and report drafting. Manual review and result verification were performed before submission.",
   "presentation_note": "Remember to claim AI usage in the presentation slides as required by the assignment."
