@@ -11,3 +11,4 @@ outputs/
 dataset/
 venv/
 .ipynb_checkpoints/
+*.pdf
