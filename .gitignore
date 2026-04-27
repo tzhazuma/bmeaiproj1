@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+outputs/
+*.pth
+*.pt
+.DS_Store
+.idea/
+.vscode/
+*.nii.gz
+dataset/
+venv/
+.ipynb_checkpoints/

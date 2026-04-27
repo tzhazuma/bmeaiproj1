@@ -1,0 +1,9 @@
+torch>=2.0
+numpy
+nibabel
+matplotlib
+scikit-image
+scipy
+pyyaml
+tqdm
+einops
