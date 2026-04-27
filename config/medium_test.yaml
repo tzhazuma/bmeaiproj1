@@ -1,0 +1,64 @@
+# Medium-scale config for learning viability checks.
+
+data:
+  dataset_path: "../bmeaidataset"
+  modalities:
+    - T1
+    - T2
+  slice_axis: 2
+  val_ratio: 0.15
+  test_ratio: 0.15
+  seed: 42
+  num_workers: 4
+  max_patients: 96
+  max_slices_per_patient: 24
+
+task1:
+  acceleration_factor: 5
+  sigma: 0.3
+  num_slices_to_show: 4
+
+task2:
+  model: "unet"
+  in_channels: 1
+  out_channels: 1
+  base_channels: 24
+  depth: 4
+  batch_size: 8
+  num_epochs: 12
+  learning_rate: 0.0005
+  weight_decay: 0.0001
+  lr_scheduler:
+    type: "ReduceLROnPlateau"
+    factor: 0.5
+    patience: 3
+    min_lr: 0.000001
+
+task3:
+  model: "unrolled_unet"
+  in_channels: 2
+  out_channels: 1
+  base_channels: 16
+  depth: 3
+  num_cascades: 2
+  dc_weight: 0.1
+  loss_type: "hybrid"
+  l1_weight: 0.7
+  batch_size: 4
+  num_epochs: 10
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  lr_scheduler:
+    type: "ReduceLROnPlateau"
+    factor: 0.5
+    patience: 3
+    min_lr: 0.000001
+
+output:
+  dir: "./outputs_medium"
+  save_model: true
+  log_interval: 50
+
+runtime:
+  use_amp: true
+  resume: true

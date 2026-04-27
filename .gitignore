@@ -2,6 +2,7 @@ __pycache__/
 *.pyc
 *.pyo
 outputs/
+outputs_*/
 *.pth
 *.pt
 .DS_Store
@@ -10,5 +11,8 @@ outputs/
 *.nii.gz
 dataset/
 venv/
+.venv/
 .ipynb_checkpoints/
 *.pdf
+*.log
+*.npy

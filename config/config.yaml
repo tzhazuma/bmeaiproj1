@@ -2,7 +2,7 @@
 # ==========================================
 
 data:
-  dataset_path: "Home/Downloads/dataset"   # Path on cloud desktop
+  dataset_path: "../bmeaidataset"   # BraTS dataset relative to the code directory
   modalities:
     - T1
     - T2
@@ -10,6 +10,9 @@ data:
   val_ratio: 0.15
   test_ratio: 0.15
   seed: 42
+  num_workers: 0
+  max_patients: null
+  max_slices_per_patient: null
 
 task1:
   acceleration_factor: 5
@@ -56,3 +59,7 @@ output:
   dir: "./outputs"
   save_model: true
   log_interval: 50         # Log every N batches
+
+runtime:
+  use_amp: true
+  resume: true

@@ -31,10 +31,10 @@ class Down(nn.Module):
 
 
 class Up(nn.Module):
-    def __init__(self, in_ch, out_ch):
+    def __init__(self, in_ch, skip_ch, out_ch):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_ch, out_ch, kernel_size=2, stride=2)
-        self.conv = ConvBlock(in_ch, out_ch)
+        self.conv = ConvBlock(skip_ch + out_ch, out_ch)
 
     def forward(self, x1, x2):
         x1 = self.up(x1)
@@ -52,20 +52,22 @@ class UNet(nn.Module):
         self.depth = depth
 
         self.inc = ConvBlock(in_channels, base_channels)
+        encoder_channels = [base_channels]
         ch = base_channels
 
         self.downs = nn.ModuleList()
-        for i in range(depth):
+        for _ in range(depth):
             self.downs.append(Down(ch, ch * 2))
             ch *= 2
+            encoder_channels.append(ch)
 
         self.bottleneck = ConvBlock(ch, ch * 2)
         ch *= 2
 
         self.ups = nn.ModuleList()
-        for i in range(depth):
-            self.ups.append(Up(ch, ch // 4))
-            ch //= 2
+        for skip_ch in reversed(encoder_channels[:-1]):
+            self.ups.append(Up(ch, skip_ch, skip_ch))
+            ch = skip_ch
 
         self.outc = nn.Conv2d(ch, out_channels, 1)
 

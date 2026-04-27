@@ -14,10 +14,19 @@ from tqdm import tqdm
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.transforms import generate_undersampling_mask, undersample_kspace
+from data.dataset import find_modality_path, resolve_dataset_path
 from utils.visualize import plot_undersampling
 
 
-def load_config(config_path='config/config.yaml'):
+def load_config(config_path=None):
+    if config_path is None:
+        config_path = os.environ.get('BMEAI_CONFIG')
+    if config_path is None:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'config',
+            'config.yaml',
+        )
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
@@ -28,7 +37,7 @@ def main():
     output_dir = os.path.join(config['output']['dir'], 'task1')
     os.makedirs(output_dir, exist_ok=True)
 
-    dataset_path = os.path.expanduser(config['data']['dataset_path'])
+    dataset_path = resolve_dataset_path(config['data']['dataset_path'])
     slice_axis = config['data']['slice_axis']
 
     patient_dirs = sorted([
@@ -48,11 +57,7 @@ def main():
     demo_patient = patient_dirs[0]
     patient_path = os.path.join(dataset_path, demo_patient)
 
-    t2_path = None
-    for f in os.listdir(patient_path):
-        if 't2' in f.lower() and f.endswith('.nii.gz'):
-            t2_path = os.path.join(patient_path, f)
-            break
+    t2_path = find_modality_path(patient_path, 't2')
 
     if t2_path is None:
         print(f"No T2 file found for {demo_patient}")
@@ -63,7 +68,10 @@ def main():
 
     n_slices = t2_vol.shape[slice_axis]
     middle = n_slices // 2
-    indices = [middle - 8, middle - 4, middle, middle + 4]
+    num_slices_to_show = max(int(cfg.get('num_slices_to_show', 4)), 1)
+    start = max(middle - 8, 0)
+    end = min(middle + 8, n_slices - 1)
+    indices = np.linspace(start, end, num_slices_to_show, dtype=int).tolist()
 
     h, w = t2_vol.shape[0], t2_vol.shape[1]
     mask = generate_undersampling_mask(

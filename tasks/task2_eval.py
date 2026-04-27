@@ -19,7 +19,15 @@ from utils.metrics import compute_psnr, compute_ssim
 from utils.visualize import plot_reconstruction
 
 
-def load_config(config_path='config/config.yaml'):
+def load_config(config_path=None):
+    if config_path is None:
+        config_path = os.environ.get('BMEAI_CONFIG')
+    if config_path is None:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'config',
+            'config.yaml',
+        )
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
 
@@ -31,11 +39,13 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    num_workers = config['data'].get('num_workers', 0)
+    pin_memory = device.type == 'cuda'
     print(f"Using device: {device}")
 
     _, _, test_ds, _ = create_dataloaders(config)
     test_loader = DataLoader(test_ds, batch_size=cfg['batch_size'],
-                             shuffle=False, num_workers=4, pin_memory=True)
+                             shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
 
     model = UNet(
         in_channels=cfg['in_channels'],
@@ -97,6 +107,9 @@ def main():
                     aliased_samples.append(a)
                     recon_samples.append(r)
                     gt_samples.append(g)
+
+    if not results['psnr_after']:
+        raise RuntimeError('No test slices were evaluated.')
 
     # Summary statistics
     summary = {}

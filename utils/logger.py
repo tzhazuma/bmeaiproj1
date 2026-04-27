@@ -23,7 +23,12 @@ class TrainingLogger:
         with open(path, 'w') as f:
             json.dump(self.metrics, f, indent=2)
 
-    def save_model(self, model, optimizer, epoch, best_val_loss):
+    def save_config(self, config):
+        path = os.path.join(self.log_dir, 'config_snapshot.json')
+        with open(path, 'w') as f:
+            json.dump(config, f, indent=2)
+
+    def save_model(self, model, optimizer, epoch, best_val_loss, scheduler=None, scaler=None):
         checkpoint = {
             'epoch': epoch,
             'model_state_dict': model.state_dict(),
@@ -31,13 +36,23 @@ class TrainingLogger:
             'best_val_loss': best_val_loss,
             'metrics': self.metrics,
         }
+        if scheduler is not None:
+            checkpoint['scheduler_state_dict'] = scheduler.state_dict()
+        if scaler is not None:
+            checkpoint['scaler_state_dict'] = scaler.state_dict()
         path = os.path.join(self.log_dir, 'checkpoint.pth')
         torch.save(checkpoint, path)
         return path
 
-    def load_model(self, path, model, optimizer=None):
+    def load_model(self, path, model, optimizer=None, scheduler=None, scaler=None):
         checkpoint = torch.load(path, map_location='cpu')
         model.load_state_dict(checkpoint['model_state_dict'])
         if optimizer is not None:
             optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+        if scheduler is not None and 'scheduler_state_dict' in checkpoint:
+            scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
+        if scaler is not None and 'scaler_state_dict' in checkpoint:
+            scaler.load_state_dict(checkpoint['scaler_state_dict'])
+        if 'metrics' in checkpoint:
+            self.metrics = checkpoint['metrics']
         return checkpoint.get('epoch', 0), checkpoint.get('best_val_loss', float('inf'))

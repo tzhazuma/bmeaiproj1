@@ -21,9 +21,40 @@ from utils.metrics import compute_psnr, compute_ssim
 from utils.visualize import plot_reconstruction, plot_error_analysis
 
 
-def load_config(config_path='config/config.yaml'):
+def load_config(config_path=None):
+    if config_path is None:
+        config_path = os.environ.get('BMEAI_CONFIG')
+    if config_path is None:
+        config_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            'config',
+            'config.yaml',
+        )
     with open(config_path, 'r') as f:
         return yaml.safe_load(f)
+
+
+def update_ranked_cases(cases, new_case, limit, reverse=False):
+    cases.append(new_case)
+    cases.sort(key=lambda item: item['psnr_after'], reverse=reverse)
+    del cases[limit:]
+
+
+def serialize_cases(cases):
+    serializable = []
+    for case in cases:
+        serializable.append({
+            'patient': case['patient'],
+            'slice_idx': case['slice_idx'],
+            'aliased': case['aliased'].tolist(),
+            'recon': case['recon'].tolist(),
+            'gt': case['gt'].tolist(),
+            'psnr_before': float(case['psnr_before']),
+            'psnr_after': float(case['psnr_after']),
+            'ssim_before': float(case['ssim_before']),
+            'ssim_after': float(case['ssim_after']),
+        })
+    return serializable
 
 
 def main():
@@ -33,11 +64,13 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    num_workers = config['data'].get('num_workers', 0)
+    pin_memory = device.type == 'cuda'
     print(f"Using device: {device}")
 
     _, _, test_ds, _ = create_dataloaders(config)
     test_loader = DataLoader(test_ds, batch_size=cfg['batch_size'],
-                             shuffle=False, num_workers=4, pin_memory=True)
+                             shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
 
     model = UnrolledReconNet(
         in_channels=cfg['in_channels'],
@@ -65,13 +98,14 @@ def main():
 
     model.eval()
 
-    all_cases = []
     results = {
         'psnr_before': [],
         'psnr_after': [],
         'ssim_before': [],
         'ssim_after': [],
     }
+    worst_cases = []
+    best_cases = []
 
     with torch.no_grad():
         for batch in tqdm(test_loader, desc="Evaluating"):
@@ -99,15 +133,22 @@ def main():
                 results['ssim_before'].append(ssim_before)
                 results['ssim_after'].append(ssim_after)
 
-                all_cases.append({
-                    'aliased': a.tolist() if isinstance(a, np.ndarray) else a,
-                    'recon': r.tolist() if isinstance(r, np.ndarray) else r,
-                    'gt': g.tolist() if isinstance(g, np.ndarray) else g,
+                case = {
+                    'patient': batch['patient'][i],
+                    'slice_idx': int(batch['slice_idx'][i]),
+                    'aliased': a,
+                    'recon': r,
+                    'gt': g,
                     'psnr_before': float(psnr_before),
                     'psnr_after': float(psnr_after),
                     'ssim_before': float(ssim_before),
                     'ssim_after': float(ssim_after),
-                })
+                }
+                update_ranked_cases(worst_cases, case.copy(), limit=5, reverse=False)
+                update_ranked_cases(best_cases, case, limit=4, reverse=True)
+
+    if not results['psnr_after']:
+        raise RuntimeError('No test slices were evaluated.')
 
     # Summary statistics
     summary = {}
@@ -139,19 +180,18 @@ def main():
     with open(summary_path, 'w') as f:
         json.dump(summary, f, indent=2)
 
-    # Error analysis: find 5 worst cases (lowest PSNR after reconstruction)
-    all_cases.sort(key=lambda x: x['psnr_after'])
-    worst_cases = all_cases[:5]
-
     print("\n=== 5 Worst Reconstruction Cases ===")
     for i, case in enumerate(worst_cases):
-        print(f"  Case {i+1}: PSNR={case['psnr_after']:.2f} dB, SSIM={case['ssim']:.4f} "
-              f"(Before: PSNR={case['psnr_before']:.2f} dB, SSIM={case['ssim_before']:.4f})")
+        print(
+            f"  Case {i+1}: {case['patient']} slice {case['slice_idx']} | "
+            f"PSNR={case['psnr_after']:.2f} dB, SSIM={case['ssim_after']:.4f} "
+            f"(Before: PSNR={case['psnr_before']:.2f} dB, SSIM={case['ssim_before']:.4f})"
+        )
 
     # Save worst cases data
     worst_cases_path = os.path.join(output_dir, 'worst_cases.json')
     with open(worst_cases_path, 'w') as f:
-        json.dump(worst_cases, f, indent=2)
+        json.dump(serialize_cases(worst_cases), f, indent=2)
 
     # Visualize worst cases
     worst_viz = []
@@ -168,13 +208,9 @@ def main():
     plot_error_analysis(worst_viz, os.path.join(output_dir, 'error_analysis.png'))
     print(f"\nSaved error analysis to {output_dir}")
 
-    # Also generate some good reconstructions for comparison
-    all_cases.sort(key=lambda x: x['psnr_after'], reverse=True)
-    best_cases = all_cases[:4]
-
-    best_aliased = [np.array(c['aliased']) for c in best_cases]
-    best_recon = [np.array(c['recon']) for c in best_cases]
-    best_gt = [np.array(c['gt']) for c in best_cases]
+    best_aliased = [c['aliased'] for c in best_cases]
+    best_recon = [c['recon'] for c in best_cases]
+    best_gt = [c['gt'] for c in best_cases]
 
     plot_reconstruction(
         best_aliased, best_recon, best_gt,

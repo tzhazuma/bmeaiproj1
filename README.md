@@ -23,9 +23,9 @@ pip install -r requirements.txt
 
 ## Dataset
 
-BraTS dataset in NIfTI format (`.nii.gz`). Place patient folders under the path specified in `config/config.yaml` (default: `Home/Downloads/dataset`).
+BraTS dataset in NIfTI format (`.nii` or `.nii.gz`). Place patient folders under the path specified in `config/config.yaml` (default: `../bmeaidataset`).
 
-Each patient folder should contain `T1.nii.gz` and `T2.nii.gz` files.
+The loader looks for BraTS-style modality names such as `*-t1n.nii` and `*-t2w.nii`, and also supports plain `t1` / `t2` filenames.
 
 ## Usage
 
@@ -52,6 +52,25 @@ python tasks/task3_eval.py     # Evaluate + error analysis
 python tasks/task1_simulation.py
 python tasks/task2_train.py && python tasks/task2_eval.py
 python tasks/task3_train.py && python tasks/task3_eval.py
+```
+
+### Quick Smoke Test
+```bash
+BMEAI_CONFIG=config/smoke_test.yaml python tasks/task1_simulation.py
+BMEAI_CONFIG=config/smoke_test.yaml python tasks/task2_train.py && BMEAI_CONFIG=config/smoke_test.yaml python tasks/task2_eval.py
+BMEAI_CONFIG=config/smoke_test.yaml python tasks/task3_train.py && BMEAI_CONFIG=config/smoke_test.yaml python tasks/task3_eval.py
+```
+
+### Medium Validation
+```bash
+BMEAI_CONFIG=config/medium_test.yaml python tasks/task2_train.py && BMEAI_CONFIG=config/medium_test.yaml python tasks/task2_eval.py
+BMEAI_CONFIG=config/medium_test.yaml python tasks/task3_train.py && BMEAI_CONFIG=config/medium_test.yaml python tasks/task3_eval.py
+```
+
+### Formal Training
+```bash
+BMEAI_CONFIG=config/formal_train.yaml python tasks/task2_train.py && BMEAI_CONFIG=config/formal_train.yaml python tasks/task2_eval.py
+BMEAI_CONFIG=config/formal_train.yaml python tasks/task3_train.py && BMEAI_CONFIG=config/formal_train.yaml python tasks/task3_eval.py
 ```
 
 ## Configuration
