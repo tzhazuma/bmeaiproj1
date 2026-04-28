@@ -44,19 +44,18 @@ def build_outline(task2, task3):
     lines = []
     lines.append('# Presentation Outline')
     lines.append('')
-    lines.append('1. Motivation: accelerated MRI reduces scan time but introduces aliasing artifacts under k-space undersampling.')
-    lines.append('2. Dataset and protocol: BraTS T1/T2, patient-level split, 16 central slices per patient, AF=5 undersampling.')
-    lines.append('3. Task 1: simulate k-space undersampling and visualize the resulting aliasing pattern.')
-    lines.append('4. Task 2: train a U-Net baseline to reconstruct T2 from undersampled input.')
-    lines.append('5. Task 3: use a multi-modal unrolled network with undersampled T2, fully sampled T1, and data consistency.')
+    lines.append('1. Motivation and setup: accelerated MRI, BraTS T1/T2, patient-level split, 16 central slices per patient, AF=5 undersampling.')
+    lines.append('2. Task 1: simulate k-space undersampling and visualize the resulting aliasing pattern.')
+    lines.append('3. Task 2: train a U-Net baseline to reconstruct T2 from undersampled input.')
+    lines.append('4. Task 3: use a multi-modal unrolled network with undersampled T2, fully sampled T1, and data consistency.')
     lines.append(
-        f"6. Main quantitative result: Task 2 reaches PSNR {task2['psnr_after']['mean']:.2f} / SSIM {task2['ssim_after']['mean']:.4f}, while Task 3 reaches PSNR {task3['psnr_after']['mean']:.2f} / SSIM {task3['ssim_after']['mean']:.4f}."
+        f"5. Main quantitative result: Task 2 reaches PSNR {task2['psnr_after']['mean']:.2f} / SSIM {task2['ssim_after']['mean']:.4f}, while Task 3 reaches PSNR {task3['psnr_after']['mean']:.2f} / SSIM {task3['ssim_after']['mean']:.4f}."
     )
     lines.append(
-        f"7. Improvement summary: Task 3 exceeds Task 2 by {task3['psnr_after']['mean'] - task2['psnr_after']['mean']:.2f} dB PSNR and {task3['ssim_after']['mean'] - task2['ssim_after']['mean']:.4f} SSIM."
+        f"6. Improvement summary: Task 3 exceeds Task 2 by {task3['psnr_after']['mean'] - task2['psnr_after']['mean']:.2f} dB PSNR and {task3['ssim_after']['mean'] - task2['ssim_after']['mean']:.4f} SSIM."
     )
-    lines.append('8. Error analysis: the most difficult cases occur on structurally complex slices, but still remain much better than the aliased inputs.')
-    lines.append('9. AI declaration: AI was used only for debugging, automation, and draft assistance; all final decisions and checks were manual.')
+    lines.append('7. Error analysis: the most difficult cases occur on structurally complex slices, but still remain much better than the aliased inputs.')
+    lines.append('8. Conclusions and AI declaration: summarize the gain from multi-modal reconstruction and state that AI was used only for debugging, automation, and draft assistance.')
     return '\n'.join(lines) + '\n'
 
 
@@ -100,16 +99,10 @@ def build_slides_tex(task2, task3):
   \titlepage
 \end{{frame}}
 
-\begin{{frame}}{{Project Motivation}}
+\begin{{frame}}{{Motivation and Experimental Setup}}
 \begin{{itemize}}
   \item Accelerated MRI acquisition is clinically desirable, but k-space undersampling introduces aliasing artifacts.
   \item Objective: reconstruct high-fidelity T2 MRI slices from AF=5 undersampled data.
-  \item Study structure: simulation, baseline reconstruction, and multi-modal unrolled reconstruction.
-\end{{itemize}}
-\end{{frame}}
-
-\begin{{frame}}{{Dataset and Experimental Setup}}
-\begin{{itemize}}
   \item Dataset: BraTS, using co-registered T1 and T2 modalities.
   \item Split strategy: patient-level partition to prevent train/test leakage.
   \item Final formal run: 16 central slices per patient across all available patients.
@@ -190,20 +183,14 @@ def build_slides_tex(task2, task3):
 \end{{columns}}
 \end{{frame}}
 
-\begin{{frame}}{{Conclusions}}
+\begin{{frame}}{{Conclusions and AI Declaration}}
 \begin{{itemize}}
   \item The baseline model removes most of the aliasing artifacts effectively.
   \item The multi-modal unrolled model provides the best quantitative fidelity and visual quality.
   \item T1 structural guidance and data consistency together yield measurable gains over the baseline.
   \item Future work includes stronger edge-aware objectives, deeper cascades, and targeted hard-case training.
-\end{{itemize}}
-\end{{frame}}
-
-\begin{{frame}}{{AI Usage Declaration}}
-\begin{{itemize}}
   \item AI tools were used only for debugging support, experiment automation, and draft editing.
   \item All modelling choices, metric verification, result interpretation, and submitted materials were manually reviewed and confirmed.
-  \item This declaration is included to satisfy the assignment requirement.
 \end{{itemize}}
 \end{{frame}}
 

@@ -60,27 +60,32 @@ def convert_table(table_lines):
 
     col_spec = []
     for align in alignments:
-        if align.startswith(':') and align.endswith(':'):
-            col_spec.append('c')
-        elif align.endswith(':'):
-            col_spec.append('r')
+        if align.endswith(':'):
+            col_spec.append('R')
         else:
-            col_spec.append('l')
+            col_spec.append('Y')
+
+    if len(headers) >= 6:
+        size_prefix = r'\footnotesize'
+    elif len(headers) >= 4:
+        size_prefix = r'\small'
+    else:
+        size_prefix = ''
 
     parts = []
-    parts.append(r'\begin{longtable}{' + ''.join(col_spec) + '}')
+    parts.append(r'\begin{table}[htbp]')
+    parts.append(r'\centering')
+    if size_prefix:
+        parts.append(size_prefix)
+    parts.append(r'\begin{tabularx}{\linewidth}{' + ''.join(col_spec) + '}')
     parts.append(r'\toprule')
     parts.append(' & '.join(apply_inline_formatting(cell) for cell in headers) + r' \\')
     parts.append(r'\midrule')
-    parts.append(r'\endfirsthead')
-    parts.append(r'\toprule')
-    parts.append(' & '.join(apply_inline_formatting(cell) for cell in headers) + r' \\')
-    parts.append(r'\midrule')
-    parts.append(r'\endhead')
     for row in rows:
         parts.append(' & '.join(apply_inline_formatting(cell) for cell in row) + r' \\')
     parts.append(r'\bottomrule')
-    parts.append(r'\end{longtable}')
+    parts.append(r'\end{tabularx}')
+    parts.append(r'\end{table}')
     return '\n'.join(parts)
 
 
@@ -192,13 +197,19 @@ def build_document(title, body):
 \usepackage{{graphicx}}
 \usepackage{{booktabs}}
 \usepackage{{longtable}}
+\usepackage{{tabularx}}
+\usepackage{{array}}
 \usepackage{{hyperref}}
 \usepackage{{parskip}}
 \usepackage{{float}}
+\renewcommand{{\arraystretch}}{{1.1}}
+\newcolumntype{{Y}}{{>{{\raggedright\arraybackslash}}X}}
+\newcolumntype{{R}}{{>{{\raggedleft\arraybackslash}}X}}
 \setmainfont{{Noto Serif CJK SC}}
 \setsansfont{{Noto Sans CJK SC}}
 \setmonofont{{Noto Sans Mono CJK SC}}
 \setCJKmainfont{{Noto Serif CJK SC}}
+\setCJKmonofont{{Noto Sans Mono CJK SC}}
 \hypersetup{{colorlinks=true, linkcolor=black, urlcolor=blue}}
 \title{{{latex_escape(title)}}}
 \date{{}}
