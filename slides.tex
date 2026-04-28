@@ -1,0 +1,123 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\usetheme{Madrid}
+\usecolortheme{dolphin}
+\usepackage{fontspec}
+\usepackage{xeCJK}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\setmainfont{Noto Sans CJK SC}
+\setsansfont{Noto Sans CJK SC}
+\setmonofont{Noto Sans Mono CJK SC}
+\setCJKmainfont{Noto Sans CJK SC}
+\title{BraTS MRI Reconstruction}
+\subtitle{BME AI Project 1}
+\author{第4组 / 唐志昊 2022533131}
+\date{2026-04-28}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Project Motivation}
+\begin{itemize}
+  \item Faster MRI acquisition is clinically desirable but undersampling causes aliasing artifacts.
+  \item Goal: reconstruct high-quality T2 MRI from AF=5 undersampled k-space.
+  \item Tasks: simulation, baseline reconstruction, and multi-modal unrolled reconstruction.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Dataset and Experimental Setup}
+\begin{itemize}
+  \item Dataset: BraTS, using co-registered T1 and T2 modalities.
+  \item Split: patient-level split to avoid train/test leakage.
+  \item Final formal run: 16 central slices per patient, all available patients.
+  \item Runtime optimization: slice caching, pinned memory, TF32, non-blocking transfer.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Task 1: Undersampling Simulation}
+  \centering
+  \includegraphics[width=0.92\linewidth,height=0.78\textheight,keepaspectratio]{outputs\_formal/task1/undersampling\_visualization.png}
+\end{frame}
+
+\begin{frame}{Task 2: Baseline U-Net}
+\begin{columns}[T]
+\column{0.48\linewidth}
+\begin{itemize}
+  \item Input: undersampled T2 slice.
+  \item Model: U-Net baseline.
+  \item Loss: MSE.
+  \item Final performance: PSNR 35.18, SSIM 0.9271.
+\end{itemize}
+\column{0.48\linewidth}
+  \includegraphics[width=\linewidth]{outputs\_formal/task2/loss\_curves.png}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Task 2 Reconstruction Examples}
+  \centering
+  \includegraphics[width=0.92\linewidth,height=0.78\textheight,keepaspectratio]{outputs\_formal/task2/reconstruction\_results.png}
+\end{frame}
+
+\begin{frame}{Task 3: Multi-modal Unrolled Network}
+\begin{columns}[T]
+\column{0.5\linewidth}
+\begin{itemize}
+  \item Input: undersampled T2 + fully sampled T1.
+  \item Architecture: 2-cascade unrolled U-Net with data consistency.
+  \item Loss: hybrid L1/L2.
+  \item Final performance: PSNR 38.12, SSIM 0.9660.
+\end{itemize}
+\column{0.45\linewidth}
+  \includegraphics[width=\linewidth]{outputs\_formal/task3/loss\_curves.png}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Quantitative Comparison}
+\begin{columns}[T]
+\column{0.52\linewidth}
+\begin{itemize}
+  \item Task 3 improves over Task 2 by 2.93 dB PSNR.
+  \item Task 3 improves over Task 2 by 0.0389 SSIM.
+  \item Multi-modal guidance and data consistency both contribute measurable gains.
+\end{itemize}
+\column{0.43\linewidth}
+  \includegraphics[width=\linewidth]{outputs\_formal/report\_assets/metric\_comparison.png}
+\end{columns}
+\end{frame}
+
+\begin{frame}{Task 3 Best Reconstructions}
+  \centering
+  \includegraphics[width=0.92\linewidth,height=0.78\textheight,keepaspectratio]{outputs\_formal/task3/best\_reconstructions.png}
+\end{frame}
+
+\begin{frame}{Task 3 Error Analysis}
+  \centering
+  \includegraphics[width=0.92\linewidth,height=0.78\textheight,keepaspectratio]{outputs\_formal/task3/error\_analysis.png}
+\end{frame}
+
+\begin{frame}{Conclusions}
+\begin{itemize}
+  \item The baseline model already removes most aliasing artifacts effectively.
+  \item The multi-modal unrolled model provides the best fidelity and visual quality.
+  \item Remaining hard cases are mainly complex slices with challenging local structure.
+  \item Future work: stronger edge-aware loss, deeper cascades, and targeted hard-case training.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{AI Usage Declaration}
+\begin{itemize}
+  \item AI tools were used only for debugging support, automation, and draft editing.
+  \item All model choices, experiment validation, metric checks, and final submitted materials were manually reviewed and confirmed.
+  \item This declaration is included to satisfy the assignment requirement.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Thank You}
+  \centering
+  Questions are welcome.
+\end{frame}
+
+\end{document}

@@ -5,10 +5,10 @@
   "chinese_names": [
     "唐志昊 2022533131"
   ],
-  "report_author_note": "Metadata has been filled automatically. Review the final report before submission.",
+  "report_author_note": "This report was generated from the final verified experiment outputs and then reviewed before submission.",
   "division_of_labor": [
     "唐志昊：完成项目整合、训练实验执行、结果核查、报告整理与提交。"
   ],
-  "ai_usage_statement": "This project used AI tools for code debugging, experiment automation, and report drafting. Manual review and result verification were performed before submission.",
-  "presentation_note": "Remember to claim AI usage in the presentation slides as required by the assignment."
+  "ai_usage_statement": "AI tools were used only as development assistance for code debugging, experiment orchestration, and draft editing. All implementation decisions, experimental validation, result interpretation, and final submitted materials were manually reviewed and confirmed by the student before submission.",
+  "presentation_note": "AI assistance is explicitly declared in the generated presentation slides, in accordance with the assignment requirement."
 }

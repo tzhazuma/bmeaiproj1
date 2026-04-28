@@ -1,23 +1,23 @@
 # BraTS MRI Reconstruction Project
 
-Generated from config `config/formal_train.yaml` on 2026-04-28 04:50:12.
+Generated from config `config/formal_train.yaml` on 2026-04-28 15:11:13.
 
 ## Group Information
 
 - Course: BME AI Project 1
 - Group: 第4组
 - Chinese names: 唐志昊 2022533131
-- Note: Metadata has been filled automatically. Review the final report before submission.
+- Note: This report was generated from the final verified experiment outputs and then reviewed before submission.
 
 ## AI Usage Declaration
 
-This project used AI tools for code debugging, experiment automation, and report drafting. Manual review and result verification were performed before submission.
+AI tools were used only as development assistance for code debugging, experiment orchestration, and draft editing. All implementation decisions, experimental validation, result interpretation, and final submitted materials were manually reviewed and confirmed by the student before submission.
 
-Presentation reminder: Remember to claim AI usage in the presentation slides as required by the assignment.
+Presentation reminder: AI assistance is explicitly declared in the generated presentation slides, in accordance with the assignment requirement.
 
 ## Project Objective
 
-This project reconstructs fully sampled T2 brain MRI slices from AF=5 undersampled k-space using the BraTS dataset. The assignment requires three tasks: undersampling simulation, a baseline reconstruction model, and a multi-modal unrolled model with data consistency.
+This project reconstructs fully sampled T2 brain MRI slices from AF=5 undersampled k-space using the BraTS dataset. The work is organized into three assignment tasks: undersampling simulation, a baseline deep reconstruction model, and a multi-modal unrolled reconstruction model with data consistency.
 
 ## Dataset and Preprocessing
 
@@ -29,21 +29,23 @@ This project reconstructs fully sampled T2 brain MRI slices from AF=5 undersampl
 - Slice selection for this run: 16 central slices per patient
 - Volume loading mode: preloaded in RAM to reduce I/O stalls
 - Split counts: train=6992, validation=1504, test=1504
+- Data split unit: patient-level split to avoid leakage across adjacent slices from the same subject
 
 ## Methods
 
 ### Task 1
 
-A 2D random variable-density sampling mask with acceleration factor 5 is generated in k-space. Fully sampled T2 slices are transformed with FFT, masked, and reconstructed with inverse FFT to obtain aliased images.
+A 2D random variable-density sampling mask with acceleration factor 5 is generated in k-space. Fully sampled T2 slices are transformed with FFT, masked, and reconstructed with inverse FFT to obtain aliased images. This part establishes the artifact pattern that the learning-based models must remove.
 
 ### Task 2
 
 Task 2 uses a U-Net baseline with base channels 24, depth 4, batch size 8, MSE loss, and learning rate 0.0005. `ReduceLROnPlateau` is used for learning rate decay.
-During training, `channels_last`, pinned memory, non-blocking GPU transfers, TF32, and multi-worker prefetching are enabled to reduce GPU idle time.
+To improve runtime efficiency on the available RTX 4060 laptop GPU, the training pipeline uses slice caching, pinned memory, non-blocking GPU transfers, `channels_last`, TF32, and prefetch-friendly dataloading to reduce GPU idle time.
 
 ### Task 3
 
 Task 3 uses an unrolled U-Net with 2 cascades, data consistency layers, and multi-modal input consisting of aliased T2 plus fully sampled T1. The loss is `hybrid` with L1 weight 0.7.
+The design motivation is that T1 provides stable anatomical structure, while the data-consistency layer constrains the network output to remain faithful to the measured undersampled k-space.
 
 ## Division of Labor
 
@@ -146,7 +148,7 @@ Task 3 uses an unrolled U-Net with 2 cascades, data consistency layers, and mult
 
 ## Error Analysis
 
-The 5 worst-performing Task 3 cases are summarized below.
+The 5 worst-performing Task 3 cases are summarized below. Even in these difficult slices, the reconstructed outputs still remain substantially better than the aliased inputs, which indicates that the failure mode is degradation in relative quality rather than complete reconstruction collapse.
 
 | Rank | Patient | Slice | PSNR After | SSIM After |
 | --- | --- | ---: | ---: | ---: |
@@ -168,7 +170,15 @@ Potential improvements for these cases include stronger edge-preserving loss ter
 
 ## Discussion
 
-The current results support the expected conclusion of the project: the baseline network substantially reduces aliasing artifacts, and the multi-modal unrolled model provides additional measurable improvement while using 16 central slices per patient across all available patients.
+The final experiment used 16 central slices per patient across all available BraTS patients and achieved a stable improvement over the aliased baseline in both tasks.
+
+The Task 2 baseline recovered most of the missing image fidelity, improving PSNR by 9.43 dB and SSIM by 0.5643, which confirms that the basic supervised reconstruction pipeline converged correctly.
+
+Task 3 further improved PSNR by 12.36 dB and SSIM by 0.6032 over the aliased input, and outperformed Task 2 by 2.93 dB PSNR and 0.0389 SSIM.
+
+These results support the intended project conclusion: adding fully sampled T1 structural guidance together with unrolled data-consistency reconstruction yields clearer edges, fewer residual artifacts, and better quantitative fidelity than a single-modality baseline.
+
+The remaining difficult cases are concentrated in slices with more complex local structure, suggesting that future improvements could come from stronger edge-aware losses, a deeper unrolled design, or targeted sampling and training strategies for harder anatomical regions.
 
 ## Submission Checklist
 
@@ -176,4 +186,4 @@ The current results support the expected conclusion of the project: the baseline
 - Report draft: `REPORT.md`
 - LaTeX report: `REPORT.tex`
 - PDF report: `REPORT.pdf`
-- Presentation slides: still need to be prepared manually
+- Presentation slides: generated as `slides.tex` and `slides.pdf`

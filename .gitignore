@@ -19,3 +19,4 @@ venv/
 *.aux
 *.out
 !REPORT.pdf
+!slides.pdf
