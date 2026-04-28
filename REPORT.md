@@ -1,6 +1,6 @@
 # BraTS MRI Reconstruction Project
 
-Generated from config `config/formal_train.yaml` on 2026-04-28 15:11:13.
+Generated from config `config/formal_train.yaml` on 2026-04-28 15:21:32.
 
 ## Group Information
 
@@ -17,7 +17,7 @@ Presentation reminder: AI assistance is explicitly declared in the generated pre
 
 ## Project Objective
 
-This project reconstructs fully sampled T2 brain MRI slices from AF=5 undersampled k-space using the BraTS dataset. The work is organized into three assignment tasks: undersampling simulation, a baseline deep reconstruction model, and a multi-modal unrolled reconstruction model with data consistency.
+The objective of this project is to reconstruct high-fidelity T2-weighted brain MRI slices from AF=5 undersampled k-space using the BraTS dataset. The study is organized into three stages: undersampling simulation, a supervised baseline reconstruction model, and a multi-modal unrolled reconstruction model with explicit data consistency.
 
 ## Dataset and Preprocessing
 
@@ -27,7 +27,7 @@ This project reconstructs fully sampled T2 brain MRI slices from AF=5 undersampl
 - Intensity normalization: z-score on non-zero voxels
 - Split strategy: patient-level train/validation/test
 - Slice selection for this run: 16 central slices per patient
-- Volume loading mode: preloaded in RAM to reduce I/O stalls
+- Data loading strategy: slice-level preloading in RAM to reduce I/O stalls
 - Split counts: train=6992, validation=1504, test=1504
 - Data split unit: patient-level split to avoid leakage across adjacent slices from the same subject
 
@@ -35,17 +35,17 @@ This project reconstructs fully sampled T2 brain MRI slices from AF=5 undersampl
 
 ### Task 1
 
-A 2D random variable-density sampling mask with acceleration factor 5 is generated in k-space. Fully sampled T2 slices are transformed with FFT, masked, and reconstructed with inverse FFT to obtain aliased images. This part establishes the artifact pattern that the learning-based models must remove.
+A 2D random variable-density sampling mask with acceleration factor 5 is generated in k-space. Fully sampled T2 slices are transformed with FFT, masked, and reconstructed with inverse FFT to obtain aliased images. This stage establishes the artifact characteristics that must subsequently be removed by the learning-based reconstruction models.
 
 ### Task 2
 
-Task 2 uses a U-Net baseline with base channels 24, depth 4, batch size 8, MSE loss, and learning rate 0.0005. `ReduceLROnPlateau` is used for learning rate decay.
-To improve runtime efficiency on the available RTX 4060 laptop GPU, the training pipeline uses slice caching, pinned memory, non-blocking GPU transfers, `channels_last`, TF32, and prefetch-friendly dataloading to reduce GPU idle time.
+Task 2 uses a U-Net baseline with base channels 24, depth 4, batch size 8, MSE loss, and learning rate 0.0005. `ReduceLROnPlateau` is used for learning rate scheduling.
+To improve runtime efficiency on the available RTX 4060 laptop GPU, the implementation uses slice caching, pinned memory, non-blocking GPU transfer, `channels_last`, TF32, and prefetch-friendly dataloading to reduce GPU idle time.
 
 ### Task 3
 
-Task 3 uses an unrolled U-Net with 2 cascades, data consistency layers, and multi-modal input consisting of aliased T2 plus fully sampled T1. The loss is `hybrid` with L1 weight 0.7.
-The design motivation is that T1 provides stable anatomical structure, while the data-consistency layer constrains the network output to remain faithful to the measured undersampled k-space.
+Task 3 uses an unrolled U-Net with 2 cascades, data-consistency layers, and multi-modal input consisting of aliased T2 together with fully sampled T1. The loss is `hybrid` with L1 weight 0.7.
+The underlying rationale is that T1 provides stable anatomical structure, while the data-consistency layer constrains the network output to remain faithful to the measured undersampled k-space.
 
 ## Division of Labor
 
@@ -148,7 +148,7 @@ The design motivation is that T1 provides stable anatomical structure, while the
 
 ## Error Analysis
 
-The 5 worst-performing Task 3 cases are summarized below. Even in these difficult slices, the reconstructed outputs still remain substantially better than the aliased inputs, which indicates that the failure mode is degradation in relative quality rather than complete reconstruction collapse.
+The 5 lowest-performing Task 3 cases are summarized below. Even in these challenging slices, the reconstructed outputs remain substantially better than the aliased inputs, indicating that the dominant failure mode is relative quality degradation rather than complete reconstruction collapse.
 
 | Rank | Patient | Slice | PSNR After | SSIM After |
 | --- | --- | ---: | ---: | ---: |
@@ -158,7 +158,7 @@ The 5 worst-performing Task 3 cases are summarized below. Even in these difficul
 | 4 | BraTS-GLI-00077-000 | 78 | 34.82 | 0.9481 |
 | 5 | BraTS-GLI-00077-000 | 79 | 34.84 | 0.9484 |
 
-Potential improvements for these cases include stronger edge-preserving loss terms, more cascades if runtime allows, and targeted inspection of slices with complex tumor boundaries.
+Potential improvements for these cases include stronger edge-preserving loss terms, additional cascades if runtime permits, and targeted inspection of slices with complex tumor boundaries.
 
 ## Execution Status
 
@@ -170,15 +170,15 @@ Potential improvements for these cases include stronger edge-preserving loss ter
 
 ## Discussion
 
-The final experiment used 16 central slices per patient across all available BraTS patients and achieved a stable improvement over the aliased baseline in both tasks.
+The final experiment used 16 central slices per patient across all available BraTS patients and produced consistent quantitative improvements over the aliased baseline in both reconstruction settings.
 
-The Task 2 baseline recovered most of the missing image fidelity, improving PSNR by 9.43 dB and SSIM by 0.5643, which confirms that the basic supervised reconstruction pipeline converged correctly.
+The Task 2 baseline recovered a substantial proportion of the missing image fidelity, improving PSNR by 9.43 dB and SSIM by 0.5643, which confirms that the supervised reconstruction pipeline converged as expected.
 
-Task 3 further improved PSNR by 12.36 dB and SSIM by 0.6032 over the aliased input, and outperformed Task 2 by 2.93 dB PSNR and 0.0389 SSIM.
+Task 3 further improved PSNR by 12.36 dB and SSIM by 0.6032 relative to the aliased input, and outperformed Task 2 by 2.93 dB PSNR and 0.0389 SSIM.
 
-These results support the intended project conclusion: adding fully sampled T1 structural guidance together with unrolled data-consistency reconstruction yields clearer edges, fewer residual artifacts, and better quantitative fidelity than a single-modality baseline.
+These findings support the central conclusion of the project: incorporating fully sampled T1 structural guidance together with unrolled data-consistency reconstruction yields sharper boundaries, fewer residual artifacts, and stronger quantitative fidelity than a single-modality baseline.
 
-The remaining difficult cases are concentrated in slices with more complex local structure, suggesting that future improvements could come from stronger edge-aware losses, a deeper unrolled design, or targeted sampling and training strategies for harder anatomical regions.
+The remaining challenging cases are concentrated in slices with more complex local structure, suggesting that future improvements may be obtained through stronger edge-aware loss functions, a deeper unrolled architecture, or targeted sampling and training strategies for anatomically difficult regions.
 
 ## Submission Checklist
 

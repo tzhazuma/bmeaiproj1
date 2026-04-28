@@ -145,7 +145,7 @@ def build_results_lines(task2_summary, task3_summary):
 def build_discussion_lines(task2_summary, task3_summary, max_slices_per_patient):
     if task2_summary is None or task3_summary is None:
         return [
-            'Formal quantitative conclusions are pending because the final training run has not completed yet. The automation scripts are prepared so this report will be refreshed automatically after the formal run finishes.'
+            'Formal quantitative conclusions remain pending because the final training run has not yet completed. The automation pipeline is prepared to refresh this report automatically once the run finishes.'
         ]
 
     task2_psnr_gain = task2_summary['psnr_after']['mean'] - task2_summary['psnr_before']['mean']
@@ -157,19 +157,19 @@ def build_discussion_lines(task2_summary, task3_summary, max_slices_per_patient)
 
     lines = []
     lines.append(
-        f'The final experiment used {format_slice_selection(max_slices_per_patient)} across all available BraTS patients and achieved a stable improvement over the aliased baseline in both tasks.'
+        f'The final experiment used {format_slice_selection(max_slices_per_patient)} across all available BraTS patients and produced consistent quantitative improvements over the aliased baseline in both reconstruction settings.'
     )
     lines.append(
-        f'The Task 2 baseline recovered most of the missing image fidelity, improving PSNR by {task2_psnr_gain:.2f} dB and SSIM by {task2_ssim_gain:.4f}, which confirms that the basic supervised reconstruction pipeline converged correctly.'
+        f'The Task 2 baseline recovered a substantial proportion of the missing image fidelity, improving PSNR by {task2_psnr_gain:.2f} dB and SSIM by {task2_ssim_gain:.4f}, which confirms that the supervised reconstruction pipeline converged as expected.'
     )
     lines.append(
-        f'Task 3 further improved PSNR by {task3_psnr_gain:.2f} dB and SSIM by {task3_ssim_gain:.4f} over the aliased input, and outperformed Task 2 by {task3_over_task2_psnr:.2f} dB PSNR and {task3_over_task2_ssim:.4f} SSIM.'
+        f'Task 3 further improved PSNR by {task3_psnr_gain:.2f} dB and SSIM by {task3_ssim_gain:.4f} relative to the aliased input, and outperformed Task 2 by {task3_over_task2_psnr:.2f} dB PSNR and {task3_over_task2_ssim:.4f} SSIM.'
     )
     lines.append(
-        'These results support the intended project conclusion: adding fully sampled T1 structural guidance together with unrolled data-consistency reconstruction yields clearer edges, fewer residual artifacts, and better quantitative fidelity than a single-modality baseline.'
+        'These findings support the central conclusion of the project: incorporating fully sampled T1 structural guidance together with unrolled data-consistency reconstruction yields sharper boundaries, fewer residual artifacts, and stronger quantitative fidelity than a single-modality baseline.'
     )
     lines.append(
-        'The remaining difficult cases are concentrated in slices with more complex local structure, suggesting that future improvements could come from stronger edge-aware losses, a deeper unrolled design, or targeted sampling and training strategies for harder anatomical regions.'
+        'The remaining challenging cases are concentrated in slices with more complex local structure, suggesting that future improvements may be obtained through stronger edge-aware loss functions, a deeper unrolled architecture, or targeted sampling and training strategies for anatomically difficult regions.'
     )
     return lines
 
@@ -215,7 +215,7 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
     lines.append('')
     lines.append('## Project Objective')
     lines.append('')
-    lines.append('This project reconstructs fully sampled T2 brain MRI slices from AF=5 undersampled k-space using the BraTS dataset. The work is organized into three assignment tasks: undersampling simulation, a baseline deep reconstruction model, and a multi-modal unrolled reconstruction model with data consistency.')
+    lines.append('The objective of this project is to reconstruct high-fidelity T2-weighted brain MRI slices from AF=5 undersampled k-space using the BraTS dataset. The study is organized into three stages: undersampling simulation, a supervised baseline reconstruction model, and a multi-modal unrolled reconstruction model with explicit data consistency.')
     lines.append('')
     lines.append('## Dataset and Preprocessing')
     lines.append('')
@@ -225,7 +225,7 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
     lines.append(f"- Intensity normalization: z-score on non-zero voxels")
     lines.append(f"- Split strategy: patient-level train/validation/test")
     lines.append(f"- Slice selection for this run: {format_slice_selection(max_slices_per_patient)}")
-    lines.append(f"- Volume loading mode: {'preloaded in RAM to reduce I/O stalls' if config['data'].get('preload_volumes', False) else 'on-demand loading'}")
+    lines.append(f"- Data loading strategy: {'slice-level preloading in RAM to reduce I/O stalls' if config['data'].get('preload_volumes', False) else 'on-demand loading'}")
     lines.append(f"- Split counts: train={split_counts['Train']}, validation={split_counts['Validation']}, test={split_counts['Test']}")
     lines.append('- Data split unit: patient-level split to avoid leakage across adjacent slices from the same subject')
     lines.append('')
@@ -233,17 +233,17 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
     lines.append('')
     lines.append('### Task 1')
     lines.append('')
-    lines.append('A 2D random variable-density sampling mask with acceleration factor 5 is generated in k-space. Fully sampled T2 slices are transformed with FFT, masked, and reconstructed with inverse FFT to obtain aliased images. This part establishes the artifact pattern that the learning-based models must remove.')
+    lines.append('A 2D random variable-density sampling mask with acceleration factor 5 is generated in k-space. Fully sampled T2 slices are transformed with FFT, masked, and reconstructed with inverse FFT to obtain aliased images. This stage establishes the artifact characteristics that must subsequently be removed by the learning-based reconstruction models.')
     lines.append('')
     lines.append('### Task 2')
     lines.append('')
-    lines.append(f"Task 2 uses a U-Net baseline with base channels {config['task2']['base_channels']}, depth {config['task2']['depth']}, batch size {config['task2']['batch_size']}, MSE loss, and learning rate {config['task2']['learning_rate']}. `ReduceLROnPlateau` is used for learning rate decay.")
-    lines.append('To improve runtime efficiency on the available RTX 4060 laptop GPU, the training pipeline uses slice caching, pinned memory, non-blocking GPU transfers, `channels_last`, TF32, and prefetch-friendly dataloading to reduce GPU idle time.')
+    lines.append(f"Task 2 uses a U-Net baseline with base channels {config['task2']['base_channels']}, depth {config['task2']['depth']}, batch size {config['task2']['batch_size']}, MSE loss, and learning rate {config['task2']['learning_rate']}. `ReduceLROnPlateau` is used for learning rate scheduling.")
+    lines.append('To improve runtime efficiency on the available RTX 4060 laptop GPU, the implementation uses slice caching, pinned memory, non-blocking GPU transfer, `channels_last`, TF32, and prefetch-friendly dataloading to reduce GPU idle time.')
     lines.append('')
     lines.append('### Task 3')
     lines.append('')
-    lines.append(f"Task 3 uses an unrolled U-Net with {config['task3']['num_cascades']} cascades, data consistency layers, and multi-modal input consisting of aliased T2 plus fully sampled T1. The loss is `{config['task3']['loss_type']}` with L1 weight {config['task3'].get('l1_weight', 'N/A')}.")
-    lines.append('The design motivation is that T1 provides stable anatomical structure, while the data-consistency layer constrains the network output to remain faithful to the measured undersampled k-space.')
+    lines.append(f"Task 3 uses an unrolled U-Net with {config['task3']['num_cascades']} cascades, data-consistency layers, and multi-modal input consisting of aliased T2 together with fully sampled T1. The loss is `{config['task3']['loss_type']}` with L1 weight {config['task3'].get('l1_weight', 'N/A')}.")
+    lines.append('The underlying rationale is that T1 provides stable anatomical structure, while the data-consistency layer constrains the network output to remain faithful to the measured undersampled k-space.')
     lines.append('')
     lines.append('## Division of Labor')
     lines.append('')
@@ -282,7 +282,7 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
     if not worst_cases:
         lines.append('Task 3 worst-case analysis is pending because `worst_cases.json` is not available yet.')
     else:
-        lines.append('The 5 worst-performing Task 3 cases are summarized below. Even in these difficult slices, the reconstructed outputs still remain substantially better than the aliased inputs, which indicates that the failure mode is degradation in relative quality rather than complete reconstruction collapse.')
+        lines.append('The 5 lowest-performing Task 3 cases are summarized below. Even in these challenging slices, the reconstructed outputs remain substantially better than the aliased inputs, indicating that the dominant failure mode is relative quality degradation rather than complete reconstruction collapse.')
         lines.append('')
         lines.append('| Rank | Patient | Slice | PSNR After | SSIM After |')
         lines.append('| --- | --- | ---: | ---: | ---: |')
@@ -291,7 +291,7 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
                 f"| {index} | {case['patient']} | {case['slice_idx']} | {case['psnr_after']:.2f} | {case['ssim_after']:.4f} |"
             )
         lines.append('')
-        lines.append('Potential improvements for these cases include stronger edge-preserving loss terms, more cascades if runtime allows, and targeted inspection of slices with complex tumor boundaries.')
+        lines.append('Potential improvements for these cases include stronger edge-preserving loss terms, additional cascades if runtime permits, and targeted inspection of slices with complex tumor boundaries.')
     lines.append('')
     lines.append('## Execution Status')
     lines.append('')

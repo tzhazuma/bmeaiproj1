@@ -44,18 +44,18 @@ def build_outline(task2, task3):
     lines = []
     lines.append('# Presentation Outline')
     lines.append('')
-    lines.append('1. Project motivation: MRI acceleration reduces scan time but creates aliasing artifacts.')
-    lines.append('2. Dataset and setup: BraTS T1/T2, patient-level split, 16 central slices per patient, AF=5 undersampling.')
-    lines.append('3. Task 1: simulate undersampling in k-space and visualize aliasing.')
-    lines.append('4. Task 2: U-Net baseline trained to reconstruct T2 from undersampled input.')
-    lines.append('5. Task 3: multi-modal unrolled network using undersampled T2 + full T1 + data consistency.')
+    lines.append('1. Motivation: accelerated MRI reduces scan time but introduces aliasing artifacts under k-space undersampling.')
+    lines.append('2. Dataset and protocol: BraTS T1/T2, patient-level split, 16 central slices per patient, AF=5 undersampling.')
+    lines.append('3. Task 1: simulate k-space undersampling and visualize the resulting aliasing pattern.')
+    lines.append('4. Task 2: train a U-Net baseline to reconstruct T2 from undersampled input.')
+    lines.append('5. Task 3: use a multi-modal unrolled network with undersampled T2, fully sampled T1, and data consistency.')
     lines.append(
-        f"6. Key result: Task 2 reaches PSNR {task2['psnr_after']['mean']:.2f} / SSIM {task2['ssim_after']['mean']:.4f}, while Task 3 reaches PSNR {task3['psnr_after']['mean']:.2f} / SSIM {task3['ssim_after']['mean']:.4f}."
+        f"6. Main quantitative result: Task 2 reaches PSNR {task2['psnr_after']['mean']:.2f} / SSIM {task2['ssim_after']['mean']:.4f}, while Task 3 reaches PSNR {task3['psnr_after']['mean']:.2f} / SSIM {task3['ssim_after']['mean']:.4f}."
     )
     lines.append(
-        f"7. Improvement summary: Task 3 beats Task 2 by {task3['psnr_after']['mean'] - task2['psnr_after']['mean']:.2f} dB PSNR and {task3['ssim_after']['mean'] - task2['ssim_after']['mean']:.4f} SSIM."
+        f"7. Improvement summary: Task 3 exceeds Task 2 by {task3['psnr_after']['mean'] - task2['psnr_after']['mean']:.2f} dB PSNR and {task3['ssim_after']['mean'] - task2['ssim_after']['mean']:.4f} SSIM."
     )
-    lines.append('8. Error analysis: difficult cases still occur on structurally complex slices, but remain much better than aliased inputs.')
+    lines.append('8. Error analysis: the most difficult cases occur on structurally complex slices, but still remain much better than the aliased inputs.')
     lines.append('9. AI declaration: AI was used only for debugging, automation, and draft assistance; all final decisions and checks were manual.')
     return '\n'.join(lines) + '\n'
 
@@ -87,8 +87,10 @@ def build_slides_tex(task2, task3):
 \setsansfont{{Noto Sans CJK SC}}
 \setmonofont{{Noto Sans Mono CJK SC}}
 \setCJKmainfont{{Noto Sans CJK SC}}
+\setCJKsansfont{{Noto Sans CJK SC}}
+\setCJKmonofont{{Noto Sans Mono CJK SC}}
 \title{{BraTS MRI Reconstruction}}
-\subtitle{{BME AI Project 1}}
+\subtitle{{Multi-contrast MRI Reconstruction from Undersampled Data}}
 \author{{第4组 / 唐志昊 2022533131}}
 \date{{2026-04-28}}
 
@@ -100,102 +102,109 @@ def build_slides_tex(task2, task3):
 
 \begin{{frame}}{{Project Motivation}}
 \begin{{itemize}}
-  \item Faster MRI acquisition is clinically desirable but undersampling causes aliasing artifacts.
-  \item Goal: reconstruct high-quality T2 MRI from AF=5 undersampled k-space.
-  \item Tasks: simulation, baseline reconstruction, and multi-modal unrolled reconstruction.
+  \item Accelerated MRI acquisition is clinically desirable, but k-space undersampling introduces aliasing artifacts.
+  \item Objective: reconstruct high-fidelity T2 MRI slices from AF=5 undersampled data.
+  \item Study structure: simulation, baseline reconstruction, and multi-modal unrolled reconstruction.
 \end{{itemize}}
 \end{{frame}}
 
 \begin{{frame}}{{Dataset and Experimental Setup}}
 \begin{{itemize}}
   \item Dataset: BraTS, using co-registered T1 and T2 modalities.
-  \item Split: patient-level split to avoid train/test leakage.
-  \item Final formal run: 16 central slices per patient, all available patients.
-  \item Runtime optimization: slice caching, pinned memory, TF32, non-blocking transfer.
+  \item Split strategy: patient-level partition to prevent train/test leakage.
+  \item Final formal run: 16 central slices per patient across all available patients.
+  \item Runtime optimization: slice caching, pinned memory, TF32, and non-blocking GPU transfer.
 \end{{itemize}}
 \end{{frame}}
 
-\begin{{frame}}{{Task 1: Undersampling Simulation}}
-  \centering
-  \includegraphics[width=0.92\linewidth,height=0.78\textheight,keepaspectratio]{{{latex_escape(task1_viz)}}}
-\end{{frame}}
-
-\begin{{frame}}{{Task 2: Baseline U-Net}}
+\begin{{frame}}{{Methods Overview}}
 \begin{{columns}}[T]
 \column{{0.48\linewidth}}
+\textbf{{Task 1: Undersampling Simulation}}\\
+\includegraphics[width=\linewidth,height=0.34\textheight,keepaspectratio]{{{latex_escape(task1_viz)}}}
+\\[0.3em]
+\textbf{{Task 2: Baseline U-Net}}\\
 \begin{{itemize}}
   \item Input: undersampled T2 slice.
   \item Model: U-Net baseline.
   \item Loss: MSE.
-  \item Final performance: PSNR {task2_psnr:.2f}, SSIM {task2_ssim:.4f}.
 \end{{itemize}}
 \column{{0.48\linewidth}}
-  \includegraphics[width=\linewidth]{{{latex_escape(task2_loss)}}}
+\textbf{{Task 3: Multi-modal Unrolled Model}}\\
+\begin{{itemize}}
+  \item Input: undersampled T2 + fully sampled T1.
+  \item Model: 2-cascade unrolled U-Net with data consistency.
+  \item Loss: hybrid L1/L2.
+\end{{itemize}}
 \end{{columns}}
 \end{{frame}}
 
-\begin{{frame}}{{Task 2 Reconstruction Examples}}
-  \centering
-  \includegraphics[width=0.92\linewidth,height=0.78\textheight,keepaspectratio]{{{latex_escape(task2_recon)}}}
-\end{{frame}}
-
-\begin{{frame}}{{Task 3: Multi-modal Unrolled Network}}
+\begin{{frame}}{{Training Behaviour}}
 \begin{{columns}}[T]
-\column{{0.5\linewidth}}
-\begin{{itemize}}
-  \item Input: undersampled T2 + fully sampled T1.
-  \item Architecture: 2-cascade unrolled U-Net with data consistency.
-  \item Loss: hybrid L1/L2.
-  \item Final performance: PSNR {task3_psnr:.2f}, SSIM {task3_ssim:.4f}.
-\end{{itemize}}
-\column{{0.45\linewidth}}
+\column{{0.48\linewidth}}
+  \centering
+  \includegraphics[width=\linewidth]{{{latex_escape(task2_loss)}}}
+  \\
+  {{\footnotesize Task 2 final performance: PSNR {task2_psnr:.2f}, SSIM {task2_ssim:.4f}}}
+\column{{0.48\linewidth}}
+  \centering
   \includegraphics[width=\linewidth]{{{latex_escape(task3_loss)}}}
+  \\
+  {{\footnotesize Task 3 final performance: PSNR {task3_psnr:.2f}, SSIM {task3_ssim:.4f}}}
 \end{{columns}}
 \end{{frame}}
 
 \begin{{frame}}{{Quantitative Comparison}}
 \begin{{columns}}[T]
-\column{{0.52\linewidth}}
+\column{{0.5\linewidth}}
 \begin{{itemize}}
-  \item Task 3 improves over Task 2 by {psnr_gain:.2f} dB PSNR.
-  \item Task 3 improves over Task 2 by {ssim_gain:.4f} SSIM.
-  \item Multi-modal guidance and data consistency both contribute measurable gains.
+  \item Task 2 achieves PSNR {task2_psnr:.2f} and SSIM {task2_ssim:.4f}.
+  \item Task 3 achieves PSNR {task3_psnr:.2f} and SSIM {task3_ssim:.4f}.
+  \item Task 3 exceeds Task 2 by {psnr_gain:.2f} dB PSNR.
+  \item Task 3 exceeds Task 2 by {ssim_gain:.4f} SSIM.
 \end{{itemize}}
-\column{{0.43\linewidth}}
+\column{{0.45\linewidth}}
   \includegraphics[width=\linewidth]{{{latex_escape(metric_chart)}}}
 \end{{columns}}
 \end{{frame}}
 
-\begin{{frame}}{{Task 3 Best Reconstructions}}
-  \centering
-  \includegraphics[width=0.92\linewidth,height=0.78\textheight,keepaspectratio]{{{latex_escape(task3_best)}}}
+\begin{{frame}}{{Representative Reconstructions}}
+\begin{{columns}}[T]
+\column{{0.48\linewidth}}
+  \includegraphics[width=\linewidth,height=0.73\textheight,keepaspectratio]{{{latex_escape(task2_recon)}}}
+\column{{0.48\linewidth}}
+  \includegraphics[width=\linewidth,height=0.73\textheight,keepaspectratio]{{{latex_escape(task3_best)}}}
+\end{{columns}}
 \end{{frame}}
 
 \begin{{frame}}{{Task 3 Error Analysis}}
-  \centering
-  \includegraphics[width=0.92\linewidth,height=0.78\textheight,keepaspectratio]{{{latex_escape(task3_error)}}}
+\begin{{columns}}[T]
+\column{{0.42\linewidth}}
+\begin{{itemize}}
+  \item The lowest-performing cases are concentrated in structurally complex slices.
+  \item Even these cases remain substantially better than the aliased input.
+  \item Likely improvements: stronger edge-aware losses, deeper cascades, and hard-case-focused training.
+\end{{itemize}}
+\column{{0.54\linewidth}}
+  \includegraphics[width=\linewidth,height=0.72\textheight,keepaspectratio]{{{latex_escape(task3_error)}}}
+\end{{columns}}
 \end{{frame}}
 
 \begin{{frame}}{{Conclusions}}
 \begin{{itemize}}
-  \item The baseline model already removes most aliasing artifacts effectively.
-  \item The multi-modal unrolled model provides the best fidelity and visual quality.
-  \item Remaining hard cases are mainly complex slices with challenging local structure.
-  \item Future work: stronger edge-aware loss, deeper cascades, and targeted hard-case training.
+  \item The baseline model removes most of the aliasing artifacts effectively.
+  \item The multi-modal unrolled model provides the best quantitative fidelity and visual quality.
+  \item T1 structural guidance and data consistency together yield measurable gains over the baseline.
+  \item Future work includes stronger edge-aware objectives, deeper cascades, and targeted hard-case training.
 \end{{itemize}}
 \end{{frame}}
 
 \begin{{frame}}{{AI Usage Declaration}}
 \begin{{itemize}}
-  \item AI tools were used only for debugging support, automation, and draft editing.
-  \item All model choices, experiment validation, metric checks, and final submitted materials were manually reviewed and confirmed.
+  \item AI tools were used only for debugging support, experiment automation, and draft editing.
+  \item All modelling choices, metric verification, result interpretation, and submitted materials were manually reviewed and confirmed.
   \item This declaration is included to satisfy the assignment requirement.
 \end{{itemize}}
-\end{{frame}}
-
-\begin{{frame}}{{Thank You}}
-  \centering
-  Questions are welcome.
 \end{{frame}}
 
 \end{{document}}
