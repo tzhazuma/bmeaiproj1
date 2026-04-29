@@ -57,7 +57,7 @@ def main():
     demo_patient = patient_dirs[0]
     patient_path = os.path.join(dataset_path, demo_patient)
 
-    t2_path = find_modality_path(patient_path, 't2')
+    t2_path = find_modality_path(patient_path, 't2w')
 
     if t2_path is None:
         print(f"No T2 file found for {demo_patient}")

@@ -34,6 +34,7 @@ def resolve_dataset_path(dataset_path):
         os.path.abspath(os.path.join(code_root, dataset_path)),
         os.path.abspath(os.path.join(project_root, dataset_path)),
         os.path.join(project_root, 'bmeaidataset'),
+        os.path.join(code_root, 'archive'),   #supposed to be the dataset path
     ]
 
     seen = set()
