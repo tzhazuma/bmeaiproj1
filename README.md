@@ -17,15 +17,58 @@ bmeaiproj1/
 
 ## Setup
 
+### Using uv (recommended)
+
 ```bash
-pip install -r requirements.txt
+uv venv .venv
+uv pip install -r requirements.txt
+```
+
+### Using pip
+
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+```
+
+### GPU Support
+
+This project supports both NVIDIA (CUDA) and AMD (ROCm) GPUs:
+- **NVIDIA**: Install `torch>=2.0` with CUDA support
+- **AMD**: Install `torch` with ROCm support (e.g., `torch==2.11.0+rocm7.2`)
+
+Verify GPU availability:
+```bash
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"
 ```
 
 ## Dataset
 
-BraTS dataset in NIfTI format (`.nii` or `.nii.gz`). Place patient folders under the path specified in `config/config.yaml` (default: `../bmeaidataset`).
+### Option 1: Automatic Download (Recommended)
 
-The loader looks for BraTS-style modality names such as `*-t1n.nii` and `*-t2w.nii`, and also supports plain `t1` / `t2` filenames.
+```bash
+python scripts/download_brats.py --output /mnt/d/brats2023
+```
+
+This script uses the Kaggle API with multi-threaded download (aria2c) and automatic extraction.
+
+**Prerequisites:**
+1. Get your Kaggle API token from [kaggle.com/settings](https://www.kaggle.com/settings/account)
+2. Place it at `~/.kaggle/kaggle.json`
+
+### Option 2: Manual Download
+
+Download [BraTS2023 Part 1](https://www.kaggle.com/datasets/aiocta/brats2023-part-1) and extract to your desired path (e.g., `/mnt/d/brats2023`).
+
+### Dataset Format
+
+BraTS dataset in NIfTI format (`.nii` or `.nii.gz`). The loader looks for BraTS-style modality names such as `*-t1n.nii` and `*-t2w.nii`, and also supports plain `t1` / `t2` filenames.
+
+Edit `config/config.yaml` to set your dataset path:
+```yaml
+data:
+  dataset_path: "/mnt/d/brats2023"
+```
 
 ## Usage
 

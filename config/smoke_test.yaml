@@ -1,7 +1,7 @@
 # Small-scale config for quick validation on a subset of BraTS.
 
 data:
-  dataset_path: "../bmeaidataset"
+  dataset_path: "/mnt/d/brats2023"
   modalities:
     - T1
     - T2
