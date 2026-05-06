@@ -3,7 +3,6 @@ archive/
 *.pyc
 *.pyo
 outputs/
-outputs_*/
 *.pth
 *.pt
 .DS_Store
