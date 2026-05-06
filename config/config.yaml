@@ -11,6 +11,10 @@ data:
   test_ratio: 0.15
   seed: 42
   num_workers: 0
+  # With preload_volumes + in-RAM slice cache, DataLoader uses num_workers=0 by default
+  # (avoids duplicating the cache per worker on Windows). Set true to use num_workers
+  # above — may raise RAM a lot; can improve GPU utilization.
+  dataloader_workers_with_slice_cache: false
   max_patients: null
   max_slices_per_patient: null
 
@@ -34,6 +38,7 @@ task2:
     factor: 0.5
     patience: 10
     min_lr: 0.000001
+  early_stop_patience: 15   # 0 to disable; val loss must strictly improve
 
 task3:
   model: "unrolled_unet"
@@ -54,6 +59,7 @@ task3:
     factor: 0.5
     patience: 15
     min_lr: 0.000001
+  early_stop_patience: 15
 
 output:
   dir: "./outputs"

@@ -40,7 +40,7 @@ A 2D random variable-density sampling mask with acceleration factor 5 is generat
 ### Task 2
 
 Task 2 uses a U-Net baseline with base channels 24, depth 4, batch size 8, MSE loss, and learning rate 0.0005. `ReduceLROnPlateau` is used for learning rate scheduling.
-To improve runtime efficiency on the available RTX 4060 laptop GPU, the implementation uses slice caching, pinned memory, non-blocking GPU transfer, `channels_last`, TF32, and prefetch-friendly dataloading to reduce GPU idle time.
+To improve runtime efficiency on the available RTX 4060/5070Ti laptop GPU, the implementation uses slice caching, pinned memory, non-blocking GPU transfer, `channels_last`, TF32, and prefetch-friendly dataloading to reduce GPU idle time.
 
 ### Task 3
 

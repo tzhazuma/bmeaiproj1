@@ -32,6 +32,7 @@ task2:
     factor: 0.5
     patience: 1
     min_lr: 0.000001
+  early_stop_patience: 0
 
 task3:
   model: "unrolled_unet"
@@ -52,6 +53,7 @@ task3:
     factor: 0.5
     patience: 1
     min_lr: 0.000001
+  early_stop_patience: 0
 
 output:
   dir: "./outputs_formal_pipeline_smoke"

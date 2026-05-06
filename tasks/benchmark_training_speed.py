@@ -14,6 +14,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data.dataset import create_dataloaders
 from models.unet import UNet
 from models.unrolled_net import UnrolledReconNet
+from utils.config_helpers import normalize_output_dir
+from utils.torch_compat import build_adam_optimizer
 
 
 def load_config(config_path=None):
@@ -25,8 +27,11 @@ def load_config(config_path=None):
             'config',
             'formal_train.yaml',
         )
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f), config_path
+    config_path = os.path.normpath(os.path.abspath(config_path))
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    normalize_output_dir(config, config_path)
+    return config, config_path
 
 
 def create_dataloader(dataset, batch_size, num_workers, pin_memory):
@@ -64,7 +69,11 @@ def benchmark_task2(config, device, max_steps=30):
     if device.type == 'cuda':
         model = model.to(memory_format=torch.channels_last)
     model.train()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['task2']['learning_rate'])
+    optimizer = build_adam_optimizer(
+        model.parameters(),
+        lr=config['task2']['learning_rate'],
+        weight_decay=config['task2'].get('weight_decay', 0.0),
+    )
     criterion = torch.nn.MSELoss()
     use_amp = config.get('runtime', {}).get('use_amp', device.type == 'cuda')
 
@@ -107,7 +116,11 @@ def benchmark_task3(config, device, max_steps=30):
     if device.type == 'cuda':
         model = model.to(memory_format=torch.channels_last)
     model.train()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['task3']['learning_rate'])
+    optimizer = build_adam_optimizer(
+        model.parameters(),
+        lr=config['task3']['learning_rate'],
+        weight_decay=config['task3'].get('weight_decay', 0.0),
+    )
     criterion = torch.nn.L1Loss()
     use_amp = config.get('runtime', {}).get('use_amp', device.type == 'cuda')
 

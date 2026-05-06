@@ -8,6 +8,7 @@ import yaml
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.dataset import create_dataloaders
+from utils.config_helpers import normalize_output_dir
 
 
 def load_config(config_path=None):
@@ -19,8 +20,11 @@ def load_config(config_path=None):
             'config',
             'config.yaml',
         )
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f), config_path
+    config_path = os.path.normpath(os.path.abspath(config_path))
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    normalize_output_dir(config, config_path)
+    return config, config_path
 
 
 def load_json(path, default=None):
@@ -325,7 +329,9 @@ def build_report(config, config_path, metadata, split_counts, task2_summary, tas
 def main():
     config, config_path = load_config()
     root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    output_dir = os.path.join(root_dir, config['output']['dir'].lstrip('./'))
+    output_dir = config['output']['dir']
+    if not os.path.isabs(output_dir):
+        output_dir = os.path.normpath(os.path.join(root_dir, output_dir.lstrip('./')))
     config_name = os.path.basename(config_path)
     write_main_report_env = os.environ.get('WRITE_MAIN_REPORT')
     if write_main_report_env is None:

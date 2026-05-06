@@ -10,6 +10,7 @@ import yaml
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from data.dataset import create_dataloaders
+from utils.config_helpers import normalize_output_dir
 
 
 def load_config(config_path=None):
@@ -21,8 +22,11 @@ def load_config(config_path=None):
             'config',
             'config.yaml',
         )
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
+    config_path = os.path.normpath(os.path.abspath(config_path))
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    normalize_output_dir(config, config_path)
+    return config
 
 
 def read_json(path):

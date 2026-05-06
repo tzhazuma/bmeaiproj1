@@ -34,6 +34,7 @@ task2:
     factor: 0.5
     patience: 3
     min_lr: 0.000001
+  early_stop_patience: 15
 
 task3:
   model: "unrolled_unet"
@@ -54,6 +55,7 @@ task3:
     factor: 0.5
     patience: 3
     min_lr: 0.000001
+  early_stop_patience: 15
 
 output:
   dir: "./outputs_medium"

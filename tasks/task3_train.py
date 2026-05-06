@@ -16,7 +16,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from data.dataset import create_dataloaders
 from models.unrolled_net import UnrolledReconNet
 from models.losses import HybridLoss
+from utils.config_helpers import normalize_output_dir
 from utils.logger import TrainingLogger
+from utils.torch_compat import build_adam_optimizer
 from utils.visualize import plot_loss_curves
 
 
@@ -30,9 +32,12 @@ def autocast_context(device, use_amp):
     return torch.amp.autocast(device_type=device.type, enabled=use_amp)
 
 
-def create_dataloader(dataset, batch_size, shuffle, num_workers, pin_memory):
+def create_dataloader(
+    dataset, batch_size, shuffle, num_workers, pin_memory,
+    workers_with_slice_cache=False,
+):
     base_dataset = getattr(dataset, 'dataset', dataset)
-    if getattr(base_dataset, '_sample_cache', None) is not None:
+    if getattr(base_dataset, '_sample_cache', None) is not None and not workers_with_slice_cache:
         num_workers = 0
     loader_kwargs = {
         'batch_size': batch_size,
@@ -62,8 +67,11 @@ def load_config(config_path=None):
             'config',
             'config.yaml',
         )
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
+    config_path = os.path.normpath(os.path.abspath(config_path))
+    with open(config_path, 'r', encoding='utf-8') as f:
+        config = yaml.safe_load(f)
+    normalize_output_dir(config, config_path)
+    return config
 
 
 def train_one_epoch(model, dataloader, optimizer, criterion, device, scaler=None, use_amp=False):
@@ -124,6 +132,7 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     use_amp = config.get('runtime', {}).get('use_amp', device.type == 'cuda')
     num_workers = config['data'].get('num_workers', 0)
+    workers_with_cache = bool(config['data'].get('dataloader_workers_with_slice_cache', False))
     pin_memory = device.type == 'cuda'
     if device.type == 'cuda':
         torch.backends.cudnn.benchmark = True
@@ -136,8 +145,28 @@ def main():
     print("Loading dataset...")
     train_ds, val_ds, test_ds, mask = create_dataloaders(config)
 
-    train_loader = create_dataloader(train_ds, cfg['batch_size'], True, num_workers, pin_memory)
-    val_loader = create_dataloader(val_ds, cfg['batch_size'], False, num_workers, pin_memory)
+    if workers_with_cache and getattr(getattr(train_ds, 'dataset', train_ds), '_sample_cache', None):
+        print(
+            "DataLoader: dataloader_workers_with_slice_cache=true (multiprocessing may duplicate "
+            "RAM per worker on Windows; only enable with enough system memory)."
+        )
+    eff_workers = num_workers if workers_with_cache else (
+        0 if getattr(getattr(train_ds, 'dataset', train_ds), '_sample_cache', None) else num_workers
+    )
+    if eff_workers == 0 and num_workers > 0:
+        print(
+            f"DataLoader: num_workers forced to 0 because in-RAM slice cache is enabled "
+            f"(set data.dataloader_workers_with_slice_cache: true to use num_workers={num_workers})."
+        )
+
+    train_loader = create_dataloader(
+        train_ds, cfg['batch_size'], True, num_workers, pin_memory,
+        workers_with_slice_cache=workers_with_cache,
+    )
+    val_loader = create_dataloader(
+        val_ds, cfg['batch_size'], False, num_workers, pin_memory,
+        workers_with_slice_cache=workers_with_cache,
+    )
 
     print(f"Train: {len(train_ds)} slices, Val: {len(val_ds)} slices, Test: {len(test_ds)} slices")
 
@@ -166,8 +195,9 @@ def main():
         criterion = nn.MSELoss()
         print("Using L2 (MSE) Loss")
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=cfg['learning_rate'],
-                                 weight_decay=cfg['weight_decay'])
+    optimizer = build_adam_optimizer(
+        model.parameters(), lr=cfg['learning_rate'], weight_decay=cfg['weight_decay'],
+    )
     scaler = create_grad_scaler(device, use_amp)
 
     scheduler_type = cfg['lr_scheduler']['type']
@@ -195,6 +225,12 @@ def main():
         start_epoch += 1
         print(f"Resumed from {checkpoint_path} at epoch {start_epoch}")
 
+    early_stop_patience = int(cfg.get('early_stop_patience') or 0)
+    epochs_without_improve = 0
+    if early_stop_patience:
+        print(f"Early stopping: stop if val loss does not improve for {early_stop_patience} epochs")
+
+    stopped_early = False
     for epoch in range(start_epoch, cfg['num_epochs']):
         print(f"\nEpoch {epoch + 1}/{cfg['num_epochs']}")
 
@@ -210,8 +246,10 @@ def main():
 
         print(f"Train Loss: {train_loss:.6f} | Val Loss: {val_loss:.6f} | LR: {current_lr:.2e}")
 
-        if val_loss < best_val_loss:
+        improved = val_loss < best_val_loss
+        if improved:
             best_val_loss = val_loss
+            epochs_without_improve = 0
             logger.save_model(
                 model,
                 optimizer,
@@ -221,8 +259,16 @@ def main():
                 scaler=scaler,
             )
             print(f"  -> Saved best model (val_loss: {best_val_loss:.6f})")
+        elif early_stop_patience:
+            epochs_without_improve += 1
+            print(f"  -> No val improvement ({epochs_without_improve}/{early_stop_patience} epochs)")
 
         logger.save_metrics()
+
+        if early_stop_patience and epochs_without_improve >= early_stop_patience:
+            print(f"\nEarly stopping triggered after {epoch + 1} epochs (val loss plateau).")
+            stopped_early = True
+            break
 
     plot_loss_curves(
         logger.metrics['train_loss'],
@@ -233,7 +279,10 @@ def main():
 
     torch.save(model.state_dict(), os.path.join(output_dir, 'unrolled_net_final.pth'))
     print(f"\nSaved model to {output_dir}")
-    print("Task 3 training completed! Run task3_eval.py next.")
+    if stopped_early:
+        print("Training finished early (early stopping). Run task3_eval.py next.")
+    else:
+        print("Task 3 training completed! Run task3_eval.py next.")
 
 
 if __name__ == '__main__':
