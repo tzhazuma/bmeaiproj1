@@ -2,7 +2,7 @@
 # ==========================================
 
 data:
-  dataset_path: "../bmeaidataset"   # BraTS dataset relative to the code directory
+  dataset_path: "/mnt/d/brats2023"   # BraTS dataset relative to the code directory
   modalities:
     - T1
     - T2

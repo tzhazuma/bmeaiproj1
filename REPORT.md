@@ -1,6 +1,6 @@
 # BraTS MRI Reconstruction Project
 
-Generated from config `config/formal_train.yaml` on 2026-04-28 15:21:32.
+Generated from config `config/formal_train.yaml` on 2026-05-06 04:45:11.
 
 ## Group Information
 
@@ -21,14 +21,14 @@ The objective of this project is to reconstruct high-fidelity T2-weighted brain 
 
 ## Dataset and Preprocessing
 
-- Dataset path: `../bmeaidataset`
+- Dataset path: `/mnt/d/brats2023`
 - Modalities used: T1, T2
 - Slice axis: 2
 - Intensity normalization: z-score on non-zero voxels
 - Split strategy: patient-level train/validation/test
 - Slice selection for this run: 16 central slices per patient
 - Data loading strategy: slice-level preloading in RAM to reduce I/O stalls
-- Split counts: train=6992, validation=1504, test=1504
+- Split counts: train=6272, validation=1344, test=1344
 - Data split unit: patient-level split to avoid leakage across adjacent slices from the same subject
 
 ## Methods
@@ -53,9 +53,9 @@ The underlying rationale is that T1 provides stable anatomical structure, while 
 
 ## Quantitative Results
 
-- Task 2 improved PSNR from 25.76 dB to 35.18 dB and SSIM from 0.3628 to 0.9271.
-- Task 3 improved PSNR from 25.76 dB to 38.12 dB and SSIM from 0.3628 to 0.9660.
-- Compared with Task 2, Task 3 changed PSNR by 2.93 dB and SSIM by 0.0389.
+- Task 2 improved PSNR from 25.95 dB to 35.16 dB and SSIM from 0.3717 to 0.9261.
+- Task 3 improved PSNR from 25.95 dB to 38.16 dB and SSIM from 0.3717 to 0.9655.
+- Compared with Task 2, Task 3 changed PSNR by 2.99 dB and SSIM by 0.0394.
 
 ## Figures and Tables
 
@@ -73,9 +73,9 @@ The underlying rationale is that T1 provides stable anatomical structure, while 
 
 | Split | Slice Count |
 | --- | ---: |
-| Train | 6992 |
-| Validation | 1504 |
-| Test | 1504 |
+| Train | 6272 |
+| Validation | 1344 |
+| Test | 1344 |
 
 ## Hyperparameters
 
@@ -94,37 +94,37 @@ The underlying rationale is that T1 provides stable anatomical structure, while 
 
 | Method | PSNR (dB) | SSIM |
 | --- | ---: | ---: |
-| Aliased input | 25.76 | 0.3628 |
-| Task 2 baseline | 35.18 | 0.9271 |
-| Task 3 multi-modal | 38.12 | 0.9660 |
+| Aliased input | 25.95 | 0.3717 |
+| Task 2 baseline | 35.16 | 0.9261 |
+| Task 3 multi-modal | 38.16 | 0.9655 |
 
 ## Improvements Over Aliased Input
 
 | Method | PSNR Gain (dB) | SSIM Gain |
 | --- | ---: | ---: |
-| Task 2 baseline | 9.43 | 0.5643 |
-| Task 3 multi-modal | 12.36 | 0.6032 |
+| Task 2 baseline | 9.22 | 0.5544 |
+| Task 3 multi-modal | 12.21 | 0.5938 |
 
 ## Task 3 Over Task 2
 
 | Comparison | Value |
 | --- | ---: |
-| PSNR gain | 2.93 dB |
-| SSIM gain | 0.0389 |
+| PSNR gain | 2.99 dB |
+| SSIM gain | 0.0394 |
 
 ### Worst-case Table
 
 | Rank | Patient | Slice | PSNR Before | PSNR After | SSIM Before | SSIM After |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | BraTS-GLI-00077-000 | 76 | 23.26 | 34.69 | 0.2865 | 0.9443 |
-| 2 | BraTS-GLI-00077-000 | 82 | 23.14 | 34.74 | 0.2875 | 0.9502 |
-| 3 | BraTS-GLI-00088-001 | 82 | 24.33 | 34.82 | 0.3160 | 0.9439 |
-| 4 | BraTS-GLI-00077-000 | 78 | 23.23 | 34.82 | 0.2942 | 0.9481 |
-| 5 | BraTS-GLI-00077-000 | 79 | 23.22 | 34.84 | 0.2921 | 0.9484 |
+| 1 | BraTS-GLI-00588-000 | 78 | 23.75 | 33.85 | 0.3009 | 0.9504 |
+| 2 | BraTS-GLI-00588-000 | 83 | 24.12 | 34.00 | 0.3050 | 0.9486 |
+| 3 | BraTS-GLI-00588-000 | 81 | 23.93 | 34.06 | 0.2995 | 0.9491 |
+| 4 | BraTS-GLI-00588-000 | 82 | 23.99 | 34.07 | 0.3005 | 0.9485 |
+| 5 | BraTS-GLI-00588-000 | 84 | 24.32 | 34.15 | 0.3121 | 0.9490 |
 
 ### Task 1 Visualization
 
-![Task 1 Visualization](outputs_formal/task1/undersampling_visualization.png)
+Pending generation.
 
 ### Task 2 Loss Curve
 
@@ -152,29 +152,27 @@ The 5 lowest-performing Task 3 cases are summarized below. Even in these challen
 
 | Rank | Patient | Slice | PSNR After | SSIM After |
 | --- | --- | ---: | ---: | ---: |
-| 1 | BraTS-GLI-00077-000 | 76 | 34.69 | 0.9443 |
-| 2 | BraTS-GLI-00077-000 | 82 | 34.74 | 0.9502 |
-| 3 | BraTS-GLI-00088-001 | 82 | 34.82 | 0.9439 |
-| 4 | BraTS-GLI-00077-000 | 78 | 34.82 | 0.9481 |
-| 5 | BraTS-GLI-00077-000 | 79 | 34.84 | 0.9484 |
+| 1 | BraTS-GLI-00588-000 | 78 | 33.85 | 0.9504 |
+| 2 | BraTS-GLI-00588-000 | 83 | 34.00 | 0.9486 |
+| 3 | BraTS-GLI-00588-000 | 81 | 34.06 | 0.9491 |
+| 4 | BraTS-GLI-00588-000 | 82 | 34.07 | 0.9485 |
+| 5 | BraTS-GLI-00588-000 | 84 | 34.15 | 0.9490 |
 
 Potential improvements for these cases include stronger edge-preserving loss terms, additional cascades if runtime permits, and targeted inspection of slices with complex tumor boundaries.
 
 ## Execution Status
 
-- Current run status: Success
+- Current run status: Not started
 - Output directory: `outputs_formal`
-- Total runtime: 24m 42s
-- Last completed stage: assets
-- Log file: `outputs_formal/logs/formal_pipeline.log`
+- Total runtime: N/A
 
 ## Discussion
 
 The final experiment used 16 central slices per patient across all available BraTS patients and produced consistent quantitative improvements over the aliased baseline in both reconstruction settings.
 
-The Task 2 baseline recovered a substantial proportion of the missing image fidelity, improving PSNR by 9.43 dB and SSIM by 0.5643, which confirms that the supervised reconstruction pipeline converged as expected.
+The Task 2 baseline recovered a substantial proportion of the missing image fidelity, improving PSNR by 9.22 dB and SSIM by 0.5544, which confirms that the supervised reconstruction pipeline converged as expected.
 
-Task 3 further improved PSNR by 12.36 dB and SSIM by 0.6032 relative to the aliased input, and outperformed Task 2 by 2.93 dB PSNR and 0.0389 SSIM.
+Task 3 further improved PSNR by 12.21 dB and SSIM by 0.5938 relative to the aliased input, and outperformed Task 2 by 2.99 dB PSNR and 0.0394 SSIM.
 
 These findings support the central conclusion of the project: incorporating fully sampled T1 structural guidance together with unrolled data-consistency reconstruction yields sharper boundaries, fewer residual artifacts, and stronger quantitative fidelity than a single-modality baseline.
 

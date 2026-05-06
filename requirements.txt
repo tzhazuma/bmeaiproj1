@@ -7,3 +7,5 @@ scipy
 pyyaml
 tqdm
 einops
+kaggle
+kagglehub

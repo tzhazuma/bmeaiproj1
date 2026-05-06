@@ -1,7 +1,7 @@
 # Formal training config for long-running experiments.
 
 data:
-  dataset_path: "../bmeaidataset"
+  dataset_path: "/mnt/d/brats2023"
   modalities:
     - T1
     - T2
